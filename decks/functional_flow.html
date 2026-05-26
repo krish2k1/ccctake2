@@ -1,0 +1,1118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>How It Works — End-to-End Functional Flow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a1020;
+    --bg-2:#0f1830;
+    --panel:#152141;
+    --panel-2:#1a2750;
+    --line:#22325c;
+    --line-soft:#1d2a4d;
+    --text:#eaf0fa;
+    --text-dim:#9fb0d0;
+    --text-mute:#6a7da3;
+    --cyan:#22d3ee;
+    --teal:#5eead4;
+    --purple:#a78bfa;
+    --amber:#fbbf24;
+    --orange:#fb923c;
+    --green:#34d399;
+    --red:#f87171;
+    --pink:#f472b6;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+  body::before{
+    content:"";position:fixed;inset:0;
+    background-image:
+      radial-gradient(900px 600px at 90% -10%, rgba(34,211,238,0.10), transparent 60%),
+      radial-gradient(700px 500px at -10% 30%, rgba(167,139,250,0.08), transparent 60%),
+      radial-gradient(600px 400px at 50% 110%, rgba(251,191,36,0.06), transparent 60%);
+    pointer-events:none;
+  }
+  .deck{position:relative;width:100vw;height:100vh}
+  .slide{
+    position:absolute;inset:0;display:none;flex-direction:column;
+    padding:5.5vh 6vw;opacity:0;transform:translateY(20px);
+    transition:opacity .55s ease, transform .55s ease;
+  }
+  .slide.active{display:flex;opacity:1;transform:translateY(0)}
+  .slide.active .reveal{animation:revealUp .6s ease both}
+  .slide.active .r1{animation-delay:.05s}
+  .slide.active .r2{animation-delay:.18s}
+  .slide.active .r3{animation-delay:.30s}
+  .slide.active .r4{animation-delay:.42s}
+  .slide.active .r5{animation-delay:.54s}
+  .slide.active .r6{animation-delay:.66s}
+  @keyframes revealUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+  /* arrow + flow animations */
+  .slide.active .pulse{animation:pulse 2.4s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:.55}50%{opacity:1}}
+  .slide.active .flow-anim{stroke-dasharray:6 6;animation:flow 1.6s linear infinite}
+  @keyframes flow{to{stroke-dashoffset:-24}}
+
+  .chrome{position:fixed;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:16px 28px;font-size:12px;color:var(--text-dim);letter-spacing:.04em;text-transform:uppercase;z-index:50}
+  .chrome.top{top:0}
+  .chrome.bot{bottom:0}
+  .brand{display:flex;align-items:center;gap:10px;font-family:'JetBrains Mono',monospace}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--cyan);box-shadow:0 0 12px var(--cyan)}
+  .progress{position:fixed;top:0;left:0;height:3px;background:linear-gradient(90deg,var(--cyan),var(--purple),var(--amber));transition:width .5s ease;z-index:60}
+
+  .kicker{color:var(--cyan);font-size:11px;letter-spacing:.22em;text-transform:uppercase;font-weight:600;margin-bottom:12px;font-family:'JetBrains Mono',monospace}
+  h1{font-size:clamp(36px,5vw,68px);font-weight:800;line-height:1.05;letter-spacing:-.02em}
+  h1 .em{background:linear-gradient(135deg,var(--cyan),var(--amber));-webkit-background-clip:text;background-clip:text;color:transparent}
+  h2{font-size:clamp(24px,3vw,38px);font-weight:700;line-height:1.1;letter-spacing:-.015em;margin-bottom:6px}
+  h3{font-size:clamp(15px,1.4vw,19px);font-weight:600;color:var(--text);margin-bottom:6px}
+  p, li{font-size:clamp(13px,1.08vw,16px);line-height:1.5;color:var(--text-dim)}
+  .lead{font-size:clamp(17px,1.45vw,22px);color:var(--text);line-height:1.5}
+  .sub{font-size:clamp(13px,1.05vw,16px);color:var(--text-mute);margin-top:4px}
+  strong{color:var(--text);font-weight:600}
+  .mono{font-family:'JetBrains Mono',monospace}
+  .pill{display:inline-flex;align-items:center;gap:6px;font-size:11px;padding:3px 9px;border-radius:999px;background:rgba(34,211,238,.10);border:1px solid rgba(34,211,238,.35);color:var(--cyan);font-weight:500;font-family:'JetBrains Mono',monospace;letter-spacing:.04em}
+  .pill.amber{background:rgba(251,191,36,.10);border-color:rgba(251,191,36,.35);color:var(--amber)}
+  .pill.green{background:rgba(52,211,153,.10);border-color:rgba(52,211,153,.35);color:var(--green)}
+  .pill.red{background:rgba(248,113,113,.10);border-color:rgba(248,113,113,.35);color:var(--red)}
+  .pill.purple{background:rgba(167,139,250,.10);border-color:rgba(167,139,250,.35);color:var(--purple)}
+
+  .slide-body{flex:1;display:flex;flex-direction:column;justify-content:center}
+  .header{display:flex;align-items:baseline;gap:18px;margin-bottom:18px}
+  .header .num{font-family:'JetBrains Mono',monospace;color:var(--text-mute);font-size:13px;letter-spacing:.18em}
+
+  .navhint{position:fixed;right:28px;bottom:22px;font-size:10px;color:var(--text-mute);letter-spacing:.1em;text-transform:uppercase;font-family:'JetBrains Mono',monospace}
+  kbd{font-family:'JetBrains Mono',monospace;font-size:10px;padding:2px 6px;border:1px solid var(--line);border-radius:4px;background:var(--bg-2);color:var(--text);margin:0 2px}
+
+  /* SVG figure container — centered, scales */
+  .figure{width:100%;max-height:65vh;display:flex;justify-content:center;align-items:center}
+  .figure svg{width:100%;height:auto;max-height:65vh}
+  text{font-family:'Inter',sans-serif;fill:var(--text)}
+  .t-mono{font-family:'JetBrains Mono',monospace}
+  .t-dim{fill:var(--text-dim)}
+  .t-mute{fill:var(--text-mute)}
+  .t-cyan{fill:var(--cyan)}
+  .t-amber{fill:var(--amber)}
+  .t-green{fill:var(--green)}
+  .t-purple{fill:var(--purple)}
+  .t-red{fill:var(--red)}
+
+  /* Title slide */
+  .title-slide{justify-content:center}
+  .title-slide .meta{display:flex;gap:28px;margin-top:28px;flex-wrap:wrap}
+  .title-slide .meta div{display:flex;flex-direction:column}
+  .title-slide .meta .k{font-size:10px;letter-spacing:.2em;color:var(--text-mute);text-transform:uppercase;font-family:'JetBrains Mono',monospace}
+  .title-slide .meta .v{font-size:15px;color:var(--text);font-weight:500;margin-top:4px}
+
+  .legend{display:flex;gap:18px;flex-wrap:wrap;margin-top:14px}
+  .legend .item{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-dim);font-family:'JetBrains Mono',monospace}
+  .legend .sw{width:14px;height:14px;border-radius:3px}
+
+  /* before/after */
+  .ba{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:14px}
+  .ba .card{padding:18px;border-radius:12px;border:1px solid var(--line);background:var(--panel)}
+  .ba .b{border-color:rgba(248,113,113,.35)}
+  .ba .a{border-color:rgba(52,211,153,.4)}
+  .ba h3 .tag{font-size:11px;font-family:'JetBrains Mono',monospace;padding:2px 8px;border-radius:4px;margin-right:8px}
+  .ba .b .tag{background:rgba(248,113,113,.15);color:var(--red)}
+  .ba .a .tag{background:rgba(52,211,153,.15);color:var(--green)}
+</style>
+</head>
+<body>
+
+<div class="progress" id="progress" style="width:0%"></div>
+<div class="chrome top">
+  <div class="brand"><span class="dot"></span><span>lae-platform · functional flow</span></div>
+  <div>How it works · end to end</div>
+</div>
+<div class="chrome bot">
+  <div>2026 · Cross-functional walkthrough</div>
+  <div><span id="slideNum">1</span> / <span id="slideTotal">15</span></div>
+</div>
+
+<div class="deck" id="deck">
+
+<!-- 1: TITLE -->
+<section class="slide title-slide active">
+  <div class="reveal r1 kicker">Functional walkthrough · for everyone</div>
+  <h1 class="reveal r2">How the platform <span class="em">actually works</span><br/>from claim arrival to closed loop.</h1>
+  <div class="reveal r3 lead" style="margin-top:24px;max-width:1000px;color:var(--text-dim)">A picture-first tour of what happens inside the platform — every flow, every decision point, every place a human or a model takes action.</div>
+  <div class="meta reveal r4">
+    <div><span class="k">Audience</span><span class="v">All — business, ops, engineering, regulatory</span></div>
+    <div><span class="k">Scope</span><span class="v">End-to-end functional behavior</span></div>
+    <div><span class="k">Goal</span><span class="v">Shared mental model · no jargon left unexplained</span></div>
+  </div>
+  <div class="legend reveal r5">
+    <div class="item"><span class="sw" style="background:var(--cyan)"></span>Platform action</div>
+    <div class="item"><span class="sw" style="background:var(--amber)"></span>Human decision</div>
+    <div class="item"><span class="sw" style="background:var(--purple)"></span>AI model</div>
+    <div class="item"><span class="sw" style="background:var(--green)"></span>Outcome captured</div>
+    <div class="item"><span class="sw" style="background:var(--red)"></span>Risk / flag</div>
+  </div>
+</section>
+
+<!-- 2: ONE PICTURE — the platform in one view -->
+<section class="slide">
+  <div class="reveal r1 header">
+    <span class="num">01 / OVERVIEW</span>
+    <h2>The platform in one picture</h2>
+  </div>
+  <div class="reveal r2 figure">
+    <svg viewBox="0 0 1400 620" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="grPlat" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#22d3ee" stop-opacity=".18"/><stop offset="1" stop-color="#a78bfa" stop-opacity=".18"/></linearGradient>
+        <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#22d3ee"/></marker>
+        <marker id="arrDn" viewBox="0 0 10 10" refX="5" refY="9" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,0 L5,10 z" fill="#a78bfa"/></marker>
+      </defs>
+      <!-- top: channels -->
+      <g>
+        <rect x="40" y="20" width="220" height="60" rx="8" fill="#0f1830" stroke="#22325c"/>
+        <text x="150" y="48" text-anchor="middle" font-size="13" class="t-mute t-mono">INBOUND</text>
+        <text x="150" y="68" text-anchor="middle" font-size="14">FNOL · phone / web / EDI</text>
+
+        <rect x="290" y="20" width="220" height="60" rx="8" fill="#0f1830" stroke="#22325c"/>
+        <text x="400" y="48" text-anchor="middle" font-size="13" class="t-mute t-mono">INBOUND</text>
+        <text x="400" y="68" text-anchor="middle" font-size="14">Documents · medical, wage</text>
+
+        <rect x="540" y="20" width="220" height="60" rx="8" fill="#0f1830" stroke="#22325c"/>
+        <text x="650" y="48" text-anchor="middle" font-size="13" class="t-mute t-mono">INBOUND</text>
+        <text x="650" y="68" text-anchor="middle" font-size="14">Vendor invoices</text>
+
+        <rect x="790" y="20" width="220" height="60" rx="8" fill="#0f1830" stroke="#22325c"/>
+        <text x="900" y="48" text-anchor="middle" font-size="13" class="t-mute t-mono">INBOUND</text>
+        <text x="900" y="68" text-anchor="middle" font-size="14">Claims core events</text>
+
+        <rect x="1040" y="20" width="320" height="60" rx="8" fill="#0f1830" stroke="#22325c"/>
+        <text x="1200" y="48" text-anchor="middle" font-size="13" class="t-mute t-mono">INBOUND</text>
+        <text x="1200" y="68" text-anchor="middle" font-size="14">Legal · medical bills · state EDI</text>
+      </g>
+      <!-- arrows down -->
+      <g stroke="#a78bfa" stroke-width="2" fill="none" marker-end="url(#arrDn)">
+        <line x1="150" y1="90" x2="150" y2="130"/>
+        <line x1="400" y1="90" x2="400" y2="130"/>
+        <line x1="650" y1="90" x2="650" y2="130"/>
+        <line x1="900" y1="90" x2="900" y2="130"/>
+        <line x1="1200" y1="90" x2="1200" y2="130"/>
+      </g>
+      <!-- platform container -->
+      <rect x="40" y="140" width="1320" height="290" rx="18" fill="url(#grPlat)" stroke="#22d3ee" stroke-opacity=".4"/>
+      <text x="64" y="170" font-size="12" class="t-cyan t-mono">// THE PLATFORM · seven capabilities</text>
+      <!-- domains row 1 -->
+      <g>
+        <g><rect x="64" y="190" width="180" height="80" rx="10" fill="#152141" stroke="#22325c"/><text x="154" y="218" text-anchor="middle" font-size="12" class="t-mono t-cyan">DOMAIN 1</text><text x="154" y="240" text-anchor="middle" font-size="14">Intake &amp;</text><text x="154" y="258" text-anchor="middle" font-size="14">Intelligence</text></g>
+        <g><rect x="260" y="190" width="180" height="80" rx="10" fill="#152141" stroke="#22325c"/><text x="350" y="218" text-anchor="middle" font-size="12" class="t-mono t-cyan">DOMAIN 2</text><text x="350" y="240" text-anchor="middle" font-size="14">Triage &amp;</text><text x="350" y="258" text-anchor="middle" font-size="14">Assignment</text></g>
+        <g><rect x="456" y="190" width="180" height="80" rx="10" fill="#152141" stroke="#22325c"/><text x="546" y="218" text-anchor="middle" font-size="12" class="t-mono t-cyan">DOMAIN 3</text><text x="546" y="240" text-anchor="middle" font-size="14">Medical</text><text x="546" y="258" text-anchor="middle" font-size="14">Management</text></g>
+        <g><rect x="652" y="190" width="180" height="80" rx="10" fill="#152141" stroke="#22325c"/><text x="742" y="218" text-anchor="middle" font-size="12" class="t-mono t-cyan">DOMAIN 4</text><text x="742" y="240" text-anchor="middle" font-size="14">Litigation</text><text x="742" y="258" text-anchor="middle" font-size="14">Management</text></g>
+        <g><rect x="848" y="190" width="180" height="80" rx="10" fill="#152141" stroke="#22325c"/><text x="938" y="218" text-anchor="middle" font-size="12" class="t-mono t-cyan">DOMAIN 5</text><text x="938" y="240" text-anchor="middle" font-size="14">Vendor</text><text x="938" y="258" text-anchor="middle" font-size="14">Orchestration</text></g>
+        <g><rect x="1044" y="190" width="180" height="80" rx="10" fill="#152141" stroke="#22325c"/><text x="1134" y="218" text-anchor="middle" font-size="12" class="t-mono t-cyan">DOMAIN 6</text><text x="1134" y="240" text-anchor="middle" font-size="14">Reserve &amp;</text><text x="1134" y="258" text-anchor="middle" font-size="14">Reporting</text></g>
+      </g>
+      <!-- shared backbone -->
+      <rect x="64" y="290" width="1276" height="60" rx="10" fill="#1a2750" stroke="#a78bfa" stroke-opacity=".5"/>
+      <text x="86" y="316" font-size="12" class="t-mono t-purple">DOMAIN 7 · DATA &amp; ML PLATFORM</text>
+      <text x="86" y="338" font-size="14" class="t-dim">event ingestion · canonical claim model · feature store · model registry · drift monitoring</text>
+      <!-- cross-cutting layer -->
+      <rect x="64" y="370" width="1276" height="44" rx="10" fill="#0f1830" stroke="#fbbf24" stroke-opacity=".35"/>
+      <text x="86" y="396" font-size="12" class="t-mono t-amber">CROSS-CUTTING</text>
+      <text x="290" y="396" font-size="13" class="t-dim">audit trail · explainability · human-in-the-loop · bias monitoring · jurisdiction-aware</text>
+      <!-- arrows down -->
+      <g stroke="#22d3ee" stroke-width="2" fill="none" marker-end="url(#arrDn)">
+        <line x1="200" y1="440" x2="200" y2="480"/>
+        <line x1="450" y1="440" x2="450" y2="480"/>
+        <line x1="700" y1="440" x2="700" y2="480"/>
+        <line x1="950" y1="440" x2="950" y2="480"/>
+        <line x1="1200" y1="440" x2="1200" y2="480"/>
+      </g>
+      <!-- bottom: outcomes -->
+      <g>
+        <rect x="40" y="490" width="240" height="60" rx="8" fill="#0f1830" stroke="#22325c"/>
+        <text x="160" y="518" text-anchor="middle" font-size="13" class="t-mute t-mono">OUTBOUND</text>
+        <text x="160" y="538" text-anchor="middle" font-size="14">Adjuster recommendations</text>
+
+        <rect x="310" y="490" width="240" height="60" rx="8" fill="#0f1830" stroke="#22325c"/>
+        <text x="430" y="518" text-anchor="middle" font-size="13" class="t-mute t-mono">OUTBOUND</text>
+        <text x="430" y="538" text-anchor="middle" font-size="14">Vendor / counsel actions</text>
+
+        <rect x="580" y="490" width="240" height="60" rx="8" fill="#0f1830" stroke="#22325c"/>
+        <text x="700" y="518" text-anchor="middle" font-size="13" class="t-mute t-mono">OUTBOUND</text>
+        <text x="700" y="538" text-anchor="middle" font-size="14">Payment instructions</text>
+
+        <rect x="850" y="490" width="240" height="60" rx="8" fill="#0f1830" stroke="#22325c"/>
+        <text x="970" y="518" text-anchor="middle" font-size="13" class="t-mute t-mono">OUTBOUND</text>
+        <text x="970" y="538" text-anchor="middle" font-size="14">Reserves &amp; reporting</text>
+
+        <rect x="1120" y="490" width="240" height="60" rx="8" fill="#0f1830" stroke="#22325c"/>
+        <text x="1240" y="518" text-anchor="middle" font-size="13" class="t-mute t-mono">OUTBOUND</text>
+        <text x="1240" y="538" text-anchor="middle" font-size="14">Exec dashboards</text>
+      </g>
+      <!-- loop -->
+      <path d="M 1340 520 C 1390 520 1390 250 1340 250" fill="none" stroke="#34d399" stroke-width="2" stroke-dasharray="6 6" class="flow-anim"/>
+      <text x="1395" y="385" font-size="12" class="t-green t-mono">outcomes</text>
+      <text x="1395" y="400" font-size="12" class="t-green t-mono">retrain</text>
+    </svg>
+  </div>
+  <p class="reveal r3 sub" style="text-align:center;margin-top:12px">Inputs flow in at the top. Seven capability domains do the work in the middle, on top of a shared data &amp; ML platform with cross-cutting compliance. Outputs flow out at the bottom — and outcomes loop back to retrain the models.</p>
+</section>
+
+<!-- 3: The five things that happen to every claim -->
+<section class="slide">
+  <div class="reveal r1 header">
+    <span class="num">02 / THE CLAIM JOURNEY</span>
+    <h2>Five things happen to every claim</h2>
+  </div>
+  <div class="reveal r2 figure">
+    <svg viewBox="0 0 1400 420" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arr2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#22d3ee"/></marker>
+      </defs>
+      <!-- 5 circles in a row -->
+      <g>
+        <circle cx="140" cy="180" r="80" fill="#152141" stroke="#22d3ee" stroke-width="2"/>
+        <text x="140" y="160" text-anchor="middle" font-size="12" class="t-mono t-cyan">STEP 1</text>
+        <text x="140" y="185" text-anchor="middle" font-size="18" font-weight="700">Intake</text>
+        <text x="140" y="208" text-anchor="middle" font-size="12" class="t-dim">ingest &amp; score</text>
+
+        <circle cx="380" cy="180" r="80" fill="#152141" stroke="#22d3ee" stroke-width="2"/>
+        <text x="380" y="160" text-anchor="middle" font-size="12" class="t-mono t-cyan">STEP 2</text>
+        <text x="380" y="185" text-anchor="middle" font-size="18" font-weight="700">Triage</text>
+        <text x="380" y="208" text-anchor="middle" font-size="12" class="t-dim">route &amp; assign</text>
+
+        <circle cx="620" cy="180" r="80" fill="#152141" stroke="#22d3ee" stroke-width="2"/>
+        <text x="620" y="160" text-anchor="middle" font-size="12" class="t-mono t-cyan">STEP 3</text>
+        <text x="620" y="185" text-anchor="middle" font-size="18" font-weight="700">Manage</text>
+        <text x="620" y="208" text-anchor="middle" font-size="12" class="t-dim">medical · vendor</text>
+
+        <circle cx="860" cy="180" r="80" fill="#152141" stroke="#22d3ee" stroke-width="2"/>
+        <text x="860" y="160" text-anchor="middle" font-size="12" class="t-mono t-cyan">STEP 4</text>
+        <text x="860" y="185" text-anchor="middle" font-size="18" font-weight="700">Resolve</text>
+        <text x="860" y="208" text-anchor="middle" font-size="12" class="t-dim">RTW · settle</text>
+
+        <circle cx="1100" cy="180" r="80" fill="#152141" stroke="#34d399" stroke-width="2"/>
+        <text x="1100" y="160" text-anchor="middle" font-size="12" class="t-mono t-green">STEP 5</text>
+        <text x="1100" y="185" text-anchor="middle" font-size="18" font-weight="700">Learn</text>
+        <text x="1100" y="208" text-anchor="middle" font-size="12" class="t-dim">outcomes loop</text>
+      </g>
+      <!-- arrows -->
+      <g stroke="#22d3ee" stroke-width="2.5" fill="none" marker-end="url(#arr2)" class="flow-anim">
+        <line x1="220" y1="180" x2="300" y2="180"/>
+        <line x1="460" y1="180" x2="540" y2="180"/>
+        <line x1="700" y1="180" x2="780" y2="180"/>
+        <line x1="940" y1="180" x2="1020" y2="180"/>
+      </g>
+      <!-- annotations -->
+      <g font-size="12">
+        <text x="140" y="300" text-anchor="middle" class="t-amber">&lt; 24 hrs</text>
+        <text x="140" y="318" text-anchor="middle" class="t-mute">severity score</text>
+        <text x="380" y="300" text-anchor="middle" class="t-amber">&lt; day 2</text>
+        <text x="380" y="318" text-anchor="middle" class="t-mute">desk + NCM if needed</text>
+        <text x="620" y="300" text-anchor="middle" class="t-amber">ongoing</text>
+        <text x="620" y="318" text-anchor="middle" class="t-mute">bills · network · NCM</text>
+        <text x="860" y="300" text-anchor="middle" class="t-amber">avg 6–18 mo</text>
+        <text x="860" y="318" text-anchor="middle" class="t-mute">return to work · close</text>
+        <text x="1100" y="300" text-anchor="middle" class="t-green">continuous</text>
+        <text x="1100" y="318" text-anchor="middle" class="t-mute">retrain · improve</text>
+      </g>
+      <!-- bottom band -->
+      <rect x="40" y="360" width="1320" height="44" rx="8" fill="#1a2750" stroke="#fbbf24" stroke-opacity=".3"/>
+      <text x="60" y="388" font-size="13" class="t-amber t-mono">A licensed adjuster owns the claim throughout. The platform recommends; the adjuster decides.</text>
+    </svg>
+  </div>
+</section>
+
+<!-- 4: Scenario A - touchless medical-only -->
+<section class="slide">
+  <div class="reveal r1 header">
+    <span class="num">03 / SCENARIO A</span>
+    <h2>A clean medical-only claim · near-touchless</h2>
+  </div>
+  <div class="reveal r2 figure">
+    <svg viewBox="0 0 1400 460" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arrG" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#34d399"/></marker>
+      </defs>
+      <!-- swim lanes labels -->
+      <g font-size="12" class="t-mono t-mute" text-anchor="end">
+        <text x="120" y="98">CLAIMANT /</text>
+        <text x="120" y="114">EMPLOYER</text>
+        <text x="120" y="198">PLATFORM</text>
+        <text x="120" y="298">ADJUSTER</text>
+        <text x="120" y="398">OUTCOME</text>
+      </g>
+      <!-- lane lines -->
+      <g stroke="#1d2a4d" stroke-width="1">
+        <line x1="140" y1="60" x2="1380" y2="60"/>
+        <line x1="140" y1="160" x2="1380" y2="160"/>
+        <line x1="140" y1="260" x2="1380" y2="260"/>
+        <line x1="140" y1="360" x2="1380" y2="360"/>
+        <line x1="140" y1="440" x2="1380" y2="440"/>
+      </g>
+      <!-- step 1 employer reports FNOL -->
+      <g><rect x="160" y="80" width="180" height="60" rx="8" fill="#152141" stroke="#fbbf24"/><text x="250" y="108" text-anchor="middle" font-size="13" class="t-amber t-mono">HUMAN</text><text x="250" y="128" text-anchor="middle" font-size="13">Employer files FNOL</text></g>
+      <!-- step 2 platform ingests, doc AI, severity -->
+      <g><rect x="360" y="180" width="240" height="60" rx="8" fill="#152141" stroke="#a78bfa"/><text x="480" y="208" text-anchor="middle" font-size="13" class="t-purple t-mono">AI</text><text x="480" y="228" text-anchor="middle" font-size="13">Doc AI extracts · severity = LOW</text></g>
+      <g><rect x="620" y="180" width="220" height="60" rx="8" fill="#152141" stroke="#22d3ee"/><text x="730" y="208" text-anchor="middle" font-size="13" class="t-cyan t-mono">PLATFORM</text><text x="730" y="228" text-anchor="middle" font-size="13">Routed to med-only desk</text></g>
+      <!-- step 3 platform pre-populates file -->
+      <g><rect x="860" y="180" width="240" height="60" rx="8" fill="#152141" stroke="#22d3ee"/><text x="980" y="208" text-anchor="middle" font-size="13" class="t-cyan t-mono">PLATFORM</text><text x="980" y="228" text-anchor="middle" font-size="13">Pre-fills claim file</text></g>
+      <!-- step 4 adjuster reviews and affirms -->
+      <g><rect x="1120" y="280" width="240" height="60" rx="8" fill="#152141" stroke="#fbbf24"/><text x="1240" y="308" text-anchor="middle" font-size="13" class="t-amber t-mono">HUMAN · 90 sec</text><text x="1240" y="328" text-anchor="middle" font-size="13">Adjuster affirms · 1 click</text></g>
+      <!-- step 5 outcome -->
+      <g><rect x="540" y="380" width="320" height="50" rx="8" fill="#152141" stroke="#34d399"/><text x="700" y="406" text-anchor="middle" font-size="13" class="t-green t-mono">OUTCOME</text><text x="700" y="423" text-anchor="middle" font-size="13">Claim handled · adjuster touch time 90 sec vs 90 min</text></g>
+      <!-- arrows -->
+      <g stroke="#22d3ee" stroke-width="2" fill="none" marker-end="url(#arr2)">
+        <path d="M 250 140 C 250 160 250 180 480 180"/>
+        <line x1="600" y1="210" x2="620" y2="210"/>
+        <line x1="840" y1="210" x2="860" y2="210"/>
+        <path d="M 1100 210 C 1140 210 1240 250 1240 280"/>
+      </g>
+      <g stroke="#34d399" stroke-width="2" fill="none" marker-end="url(#arrG)">
+        <path d="M 1240 340 C 1240 400 900 405 860 405"/>
+      </g>
+    </svg>
+  </div>
+  <p class="reveal r3 sub" style="margin-top:6px"><strong>Critical rule:</strong> "near-touchless" never means "no human." The adjuster still owns the decision — the platform has just made the review take seconds instead of an hour. <span class="pill red" style="margin-left:8px">no auto-denial</span></p>
+</section>
+
+<!-- 5: Scenario B - lost-time orchestration -->
+<section class="slide">
+  <div class="reveal r1 header">
+    <span class="num">04 / SCENARIO B</span>
+    <h2>A lost-time claim · full orchestration</h2>
+  </div>
+  <div class="reveal r2 figure">
+    <svg viewBox="0 0 1400 480" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arr3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#22d3ee"/></marker>
+      </defs>
+      <!-- timeline axis -->
+      <line x1="120" y1="430" x2="1340" y2="430" stroke="#22325c" stroke-width="2"/>
+      <g font-size="11" class="t-mono t-mute" text-anchor="middle">
+        <text x="180" y="455">Day 0</text>
+        <text x="380" y="455">Day 1–2</text>
+        <text x="580" y="455">Day 7–14</text>
+        <text x="780" y="455">Day 30</text>
+        <text x="980" y="455">Month 2–6</text>
+        <text x="1230" y="455">Resolution</text>
+      </g>
+      <!-- nodes along timeline -->
+      <g>
+        <!-- D0 FNOL -->
+        <rect x="120" y="40" width="160" height="60" rx="8" fill="#152141" stroke="#fbbf24"/>
+        <text x="200" y="68" text-anchor="middle" font-size="12" class="t-amber t-mono">HUMAN</text>
+        <text x="200" y="86" text-anchor="middle" font-size="13">FNOL filed</text>
+
+        <rect x="120" y="120" width="160" height="60" rx="8" fill="#152141" stroke="#a78bfa"/>
+        <text x="200" y="148" text-anchor="middle" font-size="12" class="t-purple t-mono">AI</text>
+        <text x="200" y="166" text-anchor="middle" font-size="13">Severity = HIGH</text>
+
+        <!-- D1-2 routing -->
+        <rect x="300" y="40" width="180" height="60" rx="8" fill="#152141" stroke="#22d3ee"/>
+        <text x="390" y="68" text-anchor="middle" font-size="12" class="t-cyan t-mono">PLATFORM</text>
+        <text x="390" y="86" text-anchor="middle" font-size="13">Route to senior desk</text>
+
+        <rect x="300" y="120" width="180" height="60" rx="8" fill="#152141" stroke="#a78bfa"/>
+        <text x="390" y="148" text-anchor="middle" font-size="12" class="t-purple t-mono">AI</text>
+        <text x="390" y="166" text-anchor="middle" font-size="13">Litigation score = 0.62</text>
+
+        <!-- D7-14 NCM + scheduling -->
+        <rect x="500" y="40" width="180" height="60" rx="8" fill="#152141" stroke="#22d3ee"/>
+        <text x="590" y="68" text-anchor="middle" font-size="12" class="t-cyan t-mono">PLATFORM</text>
+        <text x="590" y="86" text-anchor="middle" font-size="13">NCM auto-referred</text>
+
+        <rect x="500" y="120" width="180" height="60" rx="8" fill="#152141" stroke="#22d3ee"/>
+        <text x="590" y="148" text-anchor="middle" font-size="12" class="t-cyan t-mono">PLATFORM</text>
+        <text x="590" y="166" text-anchor="middle" font-size="13">In-network steering</text>
+
+        <rect x="500" y="200" width="180" height="60" rx="8" fill="#152141" stroke="#fbbf24"/>
+        <text x="590" y="228" text-anchor="middle" font-size="12" class="t-amber t-mono">HUMAN</text>
+        <text x="590" y="246" text-anchor="middle" font-size="13">Adjuster strategy</text>
+
+        <!-- D30 early settlement -->
+        <rect x="700" y="40" width="180" height="60" rx="8" fill="#152141" stroke="#a78bfa"/>
+        <text x="790" y="68" text-anchor="middle" font-size="12" class="t-purple t-mono">AI</text>
+        <text x="790" y="86" text-anchor="middle" font-size="13">Settlement range</text>
+
+        <rect x="700" y="120" width="180" height="60" rx="8" fill="#152141" stroke="#fbbf24"/>
+        <text x="790" y="148" text-anchor="middle" font-size="12" class="t-amber t-mono">HUMAN</text>
+        <text x="790" y="166" text-anchor="middle" font-size="13">Early offer made</text>
+
+        <!-- M2-6 bills + RTW -->
+        <rect x="900" y="40" width="180" height="60" rx="8" fill="#152141" stroke="#a78bfa"/>
+        <text x="990" y="68" text-anchor="middle" font-size="12" class="t-purple t-mono">AI</text>
+        <text x="990" y="86" text-anchor="middle" font-size="13">Bill anomalies caught</text>
+
+        <rect x="900" y="120" width="180" height="60" rx="8" fill="#152141" stroke="#22d3ee"/>
+        <text x="990" y="148" text-anchor="middle" font-size="12" class="t-cyan t-mono">PLATFORM</text>
+        <text x="990" y="166" text-anchor="middle" font-size="13">RTW orchestration</text>
+
+        <rect x="900" y="200" width="180" height="60" rx="8" fill="#152141" stroke="#22d3ee"/>
+        <text x="990" y="228" text-anchor="middle" font-size="12" class="t-cyan t-mono">PLATFORM</text>
+        <text x="990" y="246" text-anchor="middle" font-size="13">Drift alarms</text>
+
+        <!-- Resolution -->
+        <rect x="1140" y="40" width="200" height="60" rx="8" fill="#152141" stroke="#34d399"/>
+        <text x="1240" y="68" text-anchor="middle" font-size="12" class="t-green t-mono">OUTCOME</text>
+        <text x="1240" y="86" text-anchor="middle" font-size="13">RTW · claim resolved</text>
+
+        <rect x="1140" y="120" width="200" height="60" rx="8" fill="#152141" stroke="#34d399"/>
+        <text x="1240" y="148" text-anchor="middle" font-size="12" class="t-green t-mono">OUTCOME</text>
+        <text x="1240" y="166" text-anchor="middle" font-size="13">Vendor scorecard updates</text>
+
+        <rect x="1140" y="200" width="200" height="60" rx="8" fill="#152141" stroke="#34d399"/>
+        <text x="1240" y="228" text-anchor="middle" font-size="12" class="t-green t-mono">OUTCOME</text>
+        <text x="1240" y="246" text-anchor="middle" font-size="13">Models retrain on outcome</text>
+      </g>
+      <!-- tick lines from timeline to nodes -->
+      <g stroke="#22325c" stroke-width="1" stroke-dasharray="3 4">
+        <line x1="180" y1="430" x2="180" y2="100"/>
+        <line x1="380" y1="430" x2="380" y2="100"/>
+        <line x1="580" y1="430" x2="580" y2="260"/>
+        <line x1="780" y1="430" x2="780" y2="100"/>
+        <line x1="990" y1="430" x2="990" y2="260"/>
+        <line x1="1230" y1="430" x2="1230" y2="260"/>
+      </g>
+      <!-- horizontal flow arrow -->
+      <path d="M 280 320 L 1340 320" stroke="#22d3ee" stroke-width="2" fill="none" marker-end="url(#arr3)" stroke-dasharray="6 6" class="flow-anim"/>
+      <text x="700" y="310" text-anchor="middle" font-size="12" class="t-cyan t-mono">orchestration over time · platform actions + human decisions interleave</text>
+    </svg>
+  </div>
+</section>
+
+<!-- 6: Intake intelligence detail -->
+<section class="slide">
+  <div class="reveal r1 header">
+    <span class="num">05 / FLOW DETAIL</span>
+    <h2>What happens in the first 24 hours of a claim</h2>
+  </div>
+  <div class="reveal r2 figure">
+    <svg viewBox="0 0 1400 440" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arr4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#22d3ee"/></marker>
+      </defs>
+      <!-- channel sources -->
+      <g>
+        <rect x="40" y="60" width="180" height="50" rx="8" fill="#0f1830" stroke="#22325c"/><text x="130" y="92" text-anchor="middle" font-size="13" class="t-dim">Phone FNOL</text>
+        <rect x="40" y="130" width="180" height="50" rx="8" fill="#0f1830" stroke="#22325c"/><text x="130" y="162" text-anchor="middle" font-size="13" class="t-dim">Web FNOL portal</text>
+        <rect x="40" y="200" width="180" height="50" rx="8" fill="#0f1830" stroke="#22325c"/><text x="130" y="232" text-anchor="middle" font-size="13" class="t-dim">Employer EDI</text>
+        <rect x="40" y="270" width="180" height="50" rx="8" fill="#0f1830" stroke="#22325c"/><text x="130" y="302" text-anchor="middle" font-size="13" class="t-dim">Email + scanned forms</text>
+      </g>
+      <!-- canonical FNOL -->
+      <rect x="280" y="170" width="200" height="80" rx="10" fill="#152141" stroke="#22d3ee"/>
+      <text x="380" y="200" text-anchor="middle" font-size="12" class="t-cyan t-mono">DOMAIN 1</text>
+      <text x="380" y="222" text-anchor="middle" font-size="14">Canonical FNOL</text>
+      <text x="380" y="240" text-anchor="middle" font-size="12" class="t-mute">one record · one ID</text>
+      <!-- doc AI -->
+      <rect x="540" y="60" width="220" height="80" rx="10" fill="#152141" stroke="#a78bfa"/>
+      <text x="650" y="90" text-anchor="middle" font-size="12" class="t-purple t-mono">AI</text>
+      <text x="650" y="112" text-anchor="middle" font-size="14">Document AI</text>
+      <text x="650" y="130" text-anchor="middle" font-size="12" class="t-mute">extract structured fields</text>
+      <!-- enrichment -->
+      <rect x="540" y="170" width="220" height="80" rx="10" fill="#152141" stroke="#22d3ee"/>
+      <text x="650" y="200" text-anchor="middle" font-size="12" class="t-cyan t-mono">PLATFORM</text>
+      <text x="650" y="222" text-anchor="middle" font-size="14">Enrich · policy · employer</text>
+      <text x="650" y="240" text-anchor="middle" font-size="12" class="t-mute">join external reference data</text>
+      <!-- severity model -->
+      <rect x="540" y="280" width="220" height="80" rx="10" fill="#152141" stroke="#a78bfa"/>
+      <text x="650" y="310" text-anchor="middle" font-size="12" class="t-purple t-mono">AI MODEL</text>
+      <text x="650" y="332" text-anchor="middle" font-size="14">Severity-v1</text>
+      <text x="650" y="350" text-anchor="middle" font-size="12" class="t-mute">low · med · high · explained</text>
+      <!-- decision diamond -->
+      <g>
+        <polygon points="900,210 1010,160 1120,210 1010,260" fill="#152141" stroke="#fbbf24"/>
+        <text x="1010" y="208" text-anchor="middle" font-size="12" class="t-amber t-mono">DECISION</text>
+        <text x="1010" y="226" text-anchor="middle" font-size="13">severity?</text>
+      </g>
+      <!-- routes -->
+      <g>
+        <rect x="1180" y="70" width="200" height="60" rx="8" fill="#152141" stroke="#22d3ee"/>
+        <text x="1280" y="98" text-anchor="middle" font-size="12" class="t-cyan t-mono">ROUTE A</text>
+        <text x="1280" y="116" text-anchor="middle" font-size="13">Med-only · STP pre-fill</text>
+
+        <rect x="1180" y="200" width="200" height="60" rx="8" fill="#152141" stroke="#22d3ee"/>
+        <text x="1280" y="228" text-anchor="middle" font-size="12" class="t-cyan t-mono">ROUTE B</text>
+        <text x="1280" y="246" text-anchor="middle" font-size="13">Standard lost-time desk</text>
+
+        <rect x="1180" y="320" width="200" height="60" rx="8" fill="#152141" stroke="#fbbf24"/>
+        <text x="1280" y="348" text-anchor="middle" font-size="12" class="t-amber t-mono">ROUTE C</text>
+        <text x="1280" y="366" text-anchor="middle" font-size="13">Senior desk + NCM</text>
+      </g>
+      <!-- arrows in -->
+      <g stroke="#22d3ee" stroke-width="2" fill="none" marker-end="url(#arr4)">
+        <path d="M 220 85 C 250 85 250 200 280 200"/>
+        <path d="M 220 155 C 250 155 250 200 280 200"/>
+        <path d="M 220 225 C 250 225 250 220 280 220"/>
+        <path d="M 220 295 C 250 295 250 230 280 230"/>
+        <line x1="480" y1="210" x2="540" y2="210"/>
+        <path d="M 480 210 C 510 210 510 100 540 100"/>
+        <path d="M 480 210 C 510 210 510 320 540 320"/>
+        <line x1="760" y1="100" x2="900" y2="200"/>
+        <line x1="760" y1="210" x2="900" y2="210"/>
+        <line x1="760" y1="320" x2="900" y2="220"/>
+        <line x1="1120" y1="210" x2="1180" y2="100"/>
+        <line x1="1120" y1="210" x2="1180" y2="230"/>
+        <line x1="1120" y1="210" x2="1180" y2="350"/>
+      </g>
+      <!-- audit annotation -->
+      <rect x="40" y="370" width="1340" height="50" rx="8" fill="#1a2750" stroke="#fbbf24" stroke-opacity=".35"/>
+      <text x="60" y="396" font-size="12" class="t-amber t-mono">AUDIT EVERY STEP</text>
+      <text x="270" y="396" font-size="13" class="t-dim">decision provenance captured: model version, inputs, output, route, who confirmed · queryable forever</text>
+    </svg>
+  </div>
+</section>
+
+<!-- 7: Medical bill flow -->
+<section class="slide">
+  <div class="reveal r1 header">
+    <span class="num">06 / FLOW DETAIL</span>
+    <h2>How a medical bill is processed end-to-end</h2>
+  </div>
+  <div class="reveal r2 figure">
+    <svg viewBox="0 0 1400 420" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arrR" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#22d3ee"/></marker>
+      </defs>
+      <g>
+        <rect x="30" y="170" width="160" height="60" rx="8" fill="#152141" stroke="#22325c"/>
+        <text x="110" y="198" text-anchor="middle" font-size="12" class="t-mute t-mono">INBOUND</text>
+        <text x="110" y="218" text-anchor="middle" font-size="13">Provider bills carrier</text>
+
+        <rect x="220" y="170" width="180" height="60" rx="8" fill="#152141" stroke="#22d3ee"/>
+        <text x="310" y="198" text-anchor="middle" font-size="12" class="t-cyan t-mono">DOMAIN 5</text>
+        <text x="310" y="218" text-anchor="middle" font-size="13">Vendor invoice ingest</text>
+
+        <rect x="430" y="170" width="180" height="60" rx="8" fill="#152141" stroke="#22d3ee"/>
+        <text x="520" y="198" text-anchor="middle" font-size="12" class="t-cyan t-mono">PLATFORM</text>
+        <text x="520" y="218" text-anchor="middle" font-size="13">Rate-card check</text>
+
+        <rect x="640" y="170" width="180" height="60" rx="8" fill="#152141" stroke="#a78bfa"/>
+        <text x="730" y="198" text-anchor="middle" font-size="12" class="t-purple t-mono">AI</text>
+        <text x="730" y="218" text-anchor="middle" font-size="13">Anomaly detection</text>
+
+        <polygon points="870,200 970,150 1070,200 970,250" fill="#152141" stroke="#fbbf24"/>
+        <text x="970" y="198" text-anchor="middle" font-size="12" class="t-amber t-mono">DECISION</text>
+        <text x="970" y="216" text-anchor="middle" font-size="13">flagged?</text>
+      </g>
+      <!-- branches -->
+      <g>
+        <rect x="1120" y="60" width="240" height="60" rx="8" fill="#152141" stroke="#34d399"/>
+        <text x="1240" y="88" text-anchor="middle" font-size="12" class="t-green t-mono">NO · 80% PATH</text>
+        <text x="1240" y="108" text-anchor="middle" font-size="13">Auto-approve · pay vendor</text>
+
+        <rect x="1120" y="170" width="240" height="60" rx="8" fill="#152141" stroke="#fbbf24"/>
+        <text x="1240" y="198" text-anchor="middle" font-size="12" class="t-amber t-mono">YES · ADJUSTER</text>
+        <text x="1240" y="218" text-anchor="middle" font-size="13">Review · adjust or approve</text>
+
+        <rect x="1120" y="280" width="240" height="60" rx="8" fill="#152141" stroke="#f87171"/>
+        <text x="1240" y="308" text-anchor="middle" font-size="12" class="t-red t-mono">SUSPICION · SIU</text>
+        <text x="1240" y="328" text-anchor="middle" font-size="13">Open fraud investigation</text>
+      </g>
+      <!-- bottom outcomes -->
+      <rect x="320" y="320" width="700" height="50" rx="8" fill="#1a2750" stroke="#34d399" stroke-opacity=".4"/>
+      <text x="340" y="346" font-size="12" class="t-green t-mono">EVERY OUTCOME →</text>
+      <text x="480" y="346" font-size="13" class="t-dim">vendor scorecard updates · provider score updates · fraud model learns</text>
+
+      <!-- arrows -->
+      <g stroke="#22d3ee" stroke-width="2" fill="none" marker-end="url(#arrR)">
+        <line x1="190" y1="200" x2="220" y2="200"/>
+        <line x1="400" y1="200" x2="430" y2="200"/>
+        <line x1="610" y1="200" x2="640" y2="200"/>
+        <line x1="820" y1="200" x2="870" y2="200"/>
+        <line x1="1070" y1="180" x2="1120" y2="100"/>
+        <line x1="1070" y1="200" x2="1120" y2="200"/>
+        <line x1="1070" y1="220" x2="1120" y2="310"/>
+      </g>
+      <!-- loop back -->
+      <path d="M 1240 340 C 700 380 600 380 520 350" stroke="#34d399" stroke-width="2" stroke-dasharray="5 5" fill="none" class="flow-anim"/>
+      <text x="700" y="395" text-anchor="middle" font-size="11" class="t-green t-mono">prompt-pay timer enforced throughout</text>
+    </svg>
+  </div>
+</section>
+
+<!-- 8: Litigation timing -->
+<section class="slide">
+  <div class="reveal r1 header">
+    <span class="num">07 / FLOW DETAIL</span>
+    <h2>Why early litigation detection saves so much</h2>
+  </div>
+  <div class="reveal r2 figure">
+    <svg viewBox="0 0 1400 430" xmlns="http://www.w3.org/2000/svg">
+      <!-- top: cost curve -->
+      <text x="60" y="40" font-size="13" class="t-mute t-mono">Cost to resolve a claim once an attorney is represented</text>
+      <!-- axes -->
+      <line x1="80" y1="280" x2="1340" y2="280" stroke="#22325c" stroke-width="2"/>
+      <line x1="80" y1="60" x2="80" y2="280" stroke="#22325c" stroke-width="2"/>
+      <text x="60" y="285" text-anchor="end" font-size="11" class="t-mute t-mono">$ low</text>
+      <text x="60" y="75" text-anchor="end" font-size="11" class="t-mute t-mono">$ high</text>
+      <!-- curve (exponential-ish) -->
+      <path d="M 80 270 C 220 268 340 260 460 240 C 580 215 700 180 820 130 C 940 90 1100 70 1340 65" fill="none" stroke="#f87171" stroke-width="3"/>
+      <!-- intervention markers -->
+      <g>
+        <circle cx="280" cy="265" r="8" fill="#34d399"/>
+        <text x="280" y="305" text-anchor="middle" font-size="12" class="t-green t-mono">Day 7</text>
+        <text x="280" y="325" text-anchor="middle" font-size="12" class="t-dim">platform flags</text>
+        <text x="280" y="342" text-anchor="middle" font-size="11" class="t-mute">ideal action window</text>
+
+        <circle cx="600" cy="220" r="8" fill="#fbbf24"/>
+        <text x="600" y="265" text-anchor="middle" font-size="12" class="t-amber t-mono">Day 30</text>
+        <text x="600" y="285" text-anchor="middle" font-size="12" class="t-dim">early settlement</text>
+        <text x="600" y="302" text-anchor="middle" font-size="11" class="t-mute">last good window</text>
+
+        <circle cx="920" cy="115" r="8" fill="#f87171"/>
+        <text x="920" y="160" text-anchor="middle" font-size="12" class="t-red t-mono">Day 90+</text>
+        <text x="920" y="180" text-anchor="middle" font-size="12" class="t-dim">litigation hardens</text>
+        <text x="920" y="197" text-anchor="middle" font-size="11" class="t-mute">leverage lost</text>
+      </g>
+      <!-- legend / explanation -->
+      <g>
+        <rect x="80" y="340" width="400" height="70" rx="8" fill="#152141" stroke="#34d399"/>
+        <text x="100" y="365" font-size="12" class="t-green t-mono">EARLY · LOW COST</text>
+        <text x="100" y="385" font-size="13" class="t-dim">Platform predicts attorney representation</text>
+        <text x="100" y="402" font-size="13" class="t-dim">within 30 days → adjuster engages strategy.</text>
+
+        <rect x="500" y="340" width="400" height="70" rx="8" fill="#152141" stroke="#fbbf24"/>
+        <text x="520" y="365" font-size="12" class="t-amber t-mono">MID · CONTAINABLE</text>
+        <text x="520" y="385" font-size="13" class="t-dim">Settlement range generated · adjuster</text>
+        <text x="520" y="402" font-size="13" class="t-dim">authorized to make targeted offer.</text>
+
+        <rect x="920" y="340" width="420" height="70" rx="8" fill="#152141" stroke="#f87171"/>
+        <text x="940" y="365" font-size="12" class="t-red t-mono">LATE · EXPENSIVE</text>
+        <text x="940" y="385" font-size="13" class="t-dim">ALAE (defense, IME, depositions) compounds.</text>
+        <text x="940" y="402" font-size="13" class="t-dim">Average cost-to-resolve doubles vs early action.</text>
+      </g>
+    </svg>
+  </div>
+</section>
+
+<!-- 9: Vendor orchestration loop -->
+<section class="slide">
+  <div class="reveal r1 header">
+    <span class="num">08 / FLOW DETAIL</span>
+    <h2>How vendor leakage stops · the one vendor master</h2>
+  </div>
+  <div class="reveal r2 figure">
+    <svg viewBox="0 0 1400 450" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arrV" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#22d3ee"/></marker>
+      </defs>
+      <!-- center: vendor master -->
+      <circle cx="700" cy="225" r="100" fill="#152141" stroke="#a78bfa" stroke-width="2"/>
+      <text x="700" y="200" text-anchor="middle" font-size="12" class="t-purple t-mono">DOMAIN 5</text>
+      <text x="700" y="225" text-anchor="middle" font-size="16" font-weight="700">Vendor Master</text>
+      <text x="700" y="250" text-anchor="middle" font-size="12" class="t-dim">one record · all spend</text>
+      <!-- around the wheel: 6 vendor categories -->
+      <g>
+        <!-- top left: medical bill review -->
+        <rect x="100" y="40" width="220" height="60" rx="10" fill="#152141" stroke="#22325c"/>
+        <text x="210" y="68" text-anchor="middle" font-size="12" class="t-mute t-mono">CATEGORY</text>
+        <text x="210" y="88" text-anchor="middle" font-size="13">Medical bill review</text>
+
+        <rect x="100" y="120" width="220" height="60" rx="10" fill="#152141" stroke="#22325c"/>
+        <text x="210" y="148" text-anchor="middle" font-size="12" class="t-mute t-mono">CATEGORY</text>
+        <text x="210" y="168" text-anchor="middle" font-size="13">DME · transportation</text>
+
+        <rect x="100" y="200" width="220" height="60" rx="10" fill="#152141" stroke="#22325c"/>
+        <text x="210" y="228" text-anchor="middle" font-size="12" class="t-mute t-mono">CATEGORY</text>
+        <text x="210" y="248" text-anchor="middle" font-size="13">Defense counsel</text>
+
+        <rect x="100" y="280" width="220" height="60" rx="10" fill="#152141" stroke="#22325c"/>
+        <text x="210" y="308" text-anchor="middle" font-size="12" class="t-mute t-mono">CATEGORY</text>
+        <text x="210" y="328" text-anchor="middle" font-size="13">IME · surveillance</text>
+
+        <rect x="100" y="360" width="220" height="60" rx="10" fill="#152141" stroke="#22325c"/>
+        <text x="210" y="388" text-anchor="middle" font-size="12" class="t-mute t-mono">CATEGORY</text>
+        <text x="210" y="408" text-anchor="middle" font-size="13">Translation · SIU</text>
+      </g>
+      <!-- right side: enforcement loops -->
+      <g>
+        <rect x="1080" y="40" width="280" height="60" rx="10" fill="#152141" stroke="#34d399"/>
+        <text x="1220" y="68" text-anchor="middle" font-size="12" class="t-green t-mono">ENFORCED</text>
+        <text x="1220" y="88" text-anchor="middle" font-size="13">Rate-card on every invoice</text>
+
+        <rect x="1080" y="120" width="280" height="60" rx="10" fill="#152141" stroke="#34d399"/>
+        <text x="1220" y="148" text-anchor="middle" font-size="12" class="t-green t-mono">ENFORCED</text>
+        <text x="1220" y="168" text-anchor="middle" font-size="13">SLA + quality scoring</text>
+
+        <rect x="1080" y="200" width="280" height="60" rx="10" fill="#152141" stroke="#34d399"/>
+        <text x="1220" y="228" text-anchor="middle" font-size="12" class="t-green t-mono">ENFORCED</text>
+        <text x="1220" y="248" text-anchor="middle" font-size="13">Outcome-adjusted score</text>
+
+        <rect x="1080" y="280" width="280" height="60" rx="10" fill="#152141" stroke="#f87171"/>
+        <text x="1220" y="308" text-anchor="middle" font-size="12" class="t-red t-mono">DETECTED</text>
+        <text x="1220" y="328" text-anchor="middle" font-size="13">Billing anomaly · suspect</text>
+
+        <rect x="1080" y="360" width="280" height="60" rx="10" fill="#152141" stroke="#fbbf24"/>
+        <text x="1220" y="388" text-anchor="middle" font-size="12" class="t-amber t-mono">ACTION</text>
+        <text x="1220" y="408" text-anchor="middle" font-size="13">Rebalance · renegotiate</text>
+      </g>
+      <!-- inward arrows -->
+      <g stroke="#22d3ee" stroke-width="2" fill="none" marker-end="url(#arrV)">
+        <path d="M 320 70 C 480 70 580 180 600 200"/>
+        <path d="M 320 150 C 500 150 580 200 600 220"/>
+        <line x1="320" y1="230" x2="600" y2="225"/>
+        <path d="M 320 310 C 500 310 580 250 600 240"/>
+        <path d="M 320 390 C 500 390 580 270 600 245"/>
+      </g>
+      <!-- outward arrows -->
+      <g stroke="#a78bfa" stroke-width="2" fill="none" marker-end="url(#arrV)">
+        <path d="M 800 200 C 950 180 1010 100 1080 70"/>
+        <path d="M 800 215 C 950 200 1010 160 1080 150"/>
+        <line x1="800" y1="225" x2="1080" y2="230"/>
+        <path d="M 800 250 C 950 260 1010 290 1080 310"/>
+        <path d="M 800 260 C 950 290 1010 360 1080 390"/>
+      </g>
+    </svg>
+  </div>
+</section>
+
+<!-- 10: Data backbone -->
+<section class="slide">
+  <div class="reveal r1 header">
+    <span class="num">09 / UNDERNEATH IT ALL</span>
+    <h2>The data backbone — how everything stays linked</h2>
+  </div>
+  <div class="reveal r2 figure">
+    <svg viewBox="0 0 1400 430" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arrD" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#a78bfa"/></marker>
+      </defs>
+      <!-- sources at top -->
+      <g>
+        <rect x="40" y="30" width="180" height="56" rx="8" fill="#0f1830" stroke="#22325c"/><text x="130" y="55" text-anchor="middle" font-size="12" class="t-mute t-mono">SOURCE</text><text x="130" y="74" text-anchor="middle" font-size="13">Claims core</text>
+        <rect x="240" y="30" width="180" height="56" rx="8" fill="#0f1830" stroke="#22325c"/><text x="330" y="55" text-anchor="middle" font-size="12" class="t-mute t-mono">SOURCE</text><text x="330" y="74" text-anchor="middle" font-size="13">Policy admin</text>
+        <rect x="440" y="30" width="180" height="56" rx="8" fill="#0f1830" stroke="#22325c"/><text x="530" y="55" text-anchor="middle" font-size="12" class="t-mute t-mono">SOURCE</text><text x="530" y="74" text-anchor="middle" font-size="13">Billing</text>
+        <rect x="640" y="30" width="180" height="56" rx="8" fill="#0f1830" stroke="#22325c"/><text x="730" y="55" text-anchor="middle" font-size="12" class="t-mute t-mono">SOURCE</text><text x="730" y="74" text-anchor="middle" font-size="13">Documents</text>
+        <rect x="840" y="30" width="180" height="56" rx="8" fill="#0f1830" stroke="#22325c"/><text x="930" y="55" text-anchor="middle" font-size="12" class="t-mute t-mono">SOURCE</text><text x="930" y="74" text-anchor="middle" font-size="13">Vendor invoices</text>
+        <rect x="1040" y="30" width="180" height="56" rx="8" fill="#0f1830" stroke="#22325c"/><text x="1130" y="55" text-anchor="middle" font-size="12" class="t-mute t-mono">SOURCE</text><text x="1130" y="74" text-anchor="middle" font-size="13">State EDI</text>
+        <rect x="1240" y="30" width="120" height="56" rx="8" fill="#0f1830" stroke="#22325c"/><text x="1300" y="55" text-anchor="middle" font-size="12" class="t-mute t-mono">EXT</text><text x="1300" y="74" text-anchor="middle" font-size="13">NCCI · BLS</text>
+      </g>
+      <!-- event bus -->
+      <rect x="40" y="120" width="1320" height="50" rx="10" fill="#1a2750" stroke="#a78bfa"/>
+      <text x="60" y="146" font-size="12" class="t-purple t-mono">EVENT BUS</text>
+      <text x="200" y="146" font-size="13" class="t-dim">idempotent · replay-safe · ordered per claim · every event signed and auditable</text>
+      <!-- canonical claim record -->
+      <rect x="240" y="200" width="920" height="80" rx="12" fill="#152141" stroke="#22d3ee" stroke-width="2"/>
+      <text x="700" y="226" text-anchor="middle" font-size="12" class="t-cyan t-mono">CANONICAL CLAIM RECORD</text>
+      <text x="700" y="252" text-anchor="middle" font-size="15">policy → claim → medical bill → vendor invoice → outcome</text>
+      <text x="700" y="270" text-anchor="middle" font-size="12" class="t-mute">one ID joins them all · all domains query through this</text>
+      <!-- feature store + model registry + audit -->
+      <g>
+        <rect x="40" y="320" width="280" height="70" rx="10" fill="#152141" stroke="#22d3ee"/>
+        <text x="180" y="346" text-anchor="middle" font-size="12" class="t-cyan t-mono">FEATURE STORE</text>
+        <text x="180" y="367" text-anchor="middle" font-size="13" class="t-dim">model inputs · versioned</text>
+
+        <rect x="360" y="320" width="280" height="70" rx="10" fill="#152141" stroke="#a78bfa"/>
+        <text x="500" y="346" text-anchor="middle" font-size="12" class="t-purple t-mono">MODEL REGISTRY</text>
+        <text x="500" y="367" text-anchor="middle" font-size="13" class="t-dim">version · owner · approvals</text>
+
+        <rect x="680" y="320" width="280" height="70" rx="10" fill="#152141" stroke="#fbbf24"/>
+        <text x="820" y="346" text-anchor="middle" font-size="12" class="t-amber t-mono">DECISION AUDIT LOG</text>
+        <text x="820" y="367" text-anchor="middle" font-size="13" class="t-dim">every AI decision provenance</text>
+
+        <rect x="1000" y="320" width="280" height="70" rx="10" fill="#152141" stroke="#34d399"/>
+        <text x="1140" y="346" text-anchor="middle" font-size="12" class="t-green t-mono">DRIFT MONITOR</text>
+        <text x="1140" y="367" text-anchor="middle" font-size="13" class="t-dim">data + prediction + fairness</text>
+      </g>
+      <!-- arrows -->
+      <g stroke="#a78bfa" stroke-width="2" fill="none" marker-end="url(#arrD)">
+        <line x1="130" y1="86" x2="130" y2="120"/>
+        <line x1="330" y1="86" x2="330" y2="120"/>
+        <line x1="530" y1="86" x2="530" y2="120"/>
+        <line x1="730" y1="86" x2="730" y2="120"/>
+        <line x1="930" y1="86" x2="930" y2="120"/>
+        <line x1="1130" y1="86" x2="1130" y2="120"/>
+        <line x1="1300" y1="86" x2="1300" y2="120"/>
+        <line x1="700" y1="170" x2="700" y2="200"/>
+      </g>
+      <g stroke="#22d3ee" stroke-width="2" fill="none" marker-end="url(#arrD)">
+        <path d="M 600 280 C 600 300 180 300 180 320"/>
+        <path d="M 650 280 C 650 300 500 300 500 320"/>
+        <path d="M 750 280 C 750 300 820 300 820 320"/>
+        <path d="M 800 280 C 800 300 1140 300 1140 320"/>
+      </g>
+    </svg>
+  </div>
+</section>
+
+<!-- 11: Closed loop -->
+<section class="slide">
+  <div class="reveal r1 header">
+    <span class="num">10 / THE LEARNING LOOP</span>
+    <h2>Why the platform gets better every month</h2>
+  </div>
+  <div class="reveal r2 figure">
+    <svg viewBox="0 0 1400 420" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arrL" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#34d399"/></marker>
+      </defs>
+      <!-- big circle showing 5 stations -->
+      <g>
+        <circle cx="700" cy="210" r="170" fill="none" stroke="#22325c" stroke-width="2" stroke-dasharray="3 5"/>
+        <!-- stations -->
+        <g><circle cx="700" cy="40" r="48" fill="#152141" stroke="#22d3ee"/><text x="700" y="38" text-anchor="middle" font-size="12" class="t-cyan t-mono">1</text><text x="700" y="58" text-anchor="middle" font-size="13">Decide</text></g>
+        <g><circle cx="870" cy="160" r="48" fill="#152141" stroke="#22d3ee"/><text x="870" y="158" text-anchor="middle" font-size="12" class="t-cyan t-mono">2</text><text x="870" y="178" text-anchor="middle" font-size="13">Act</text></g>
+        <g><circle cx="810" cy="340" r="48" fill="#152141" stroke="#34d399"/><text x="810" y="338" text-anchor="middle" font-size="12" class="t-green t-mono">3</text><text x="810" y="358" text-anchor="middle" font-size="13">Observe</text></g>
+        <g><circle cx="590" cy="340" r="48" fill="#152141" stroke="#a78bfa"/><text x="590" y="338" text-anchor="middle" font-size="12" class="t-purple t-mono">4</text><text x="590" y="358" text-anchor="middle" font-size="13">Measure</text></g>
+        <g><circle cx="530" cy="160" r="48" fill="#152141" stroke="#a78bfa"/><text x="530" y="158" text-anchor="middle" font-size="12" class="t-purple t-mono">5</text><text x="530" y="178" text-anchor="middle" font-size="13">Retrain</text></g>
+      </g>
+      <!-- station descriptions on outside -->
+      <g font-size="12" class="t-dim">
+        <text x="700" y="120" text-anchor="middle">model + adjuster decide</text>
+        <text x="980" y="160" text-anchor="middle">platform acts · audit log</text>
+        <text x="970" y="370" text-anchor="middle">RTW · cost · duration</text>
+        <text x="420" y="370" text-anchor="middle">vs expected outcome</text>
+        <text x="420" y="160" text-anchor="middle">new model version</text>
+      </g>
+      <!-- arrows around the circle -->
+      <g stroke="#34d399" stroke-width="2.5" fill="none" marker-end="url(#arrL)" class="flow-anim">
+        <path d="M 745 70 A 170 170 0 0 1 855 122"/>
+        <path d="M 895 200 A 170 170 0 0 1 845 305"/>
+        <path d="M 770 360 A 170 170 0 0 1 620 360"/>
+        <path d="M 555 310 A 170 170 0 0 1 515 200"/>
+        <path d="M 558 120 A 170 170 0 0 1 660 70"/>
+      </g>
+      <!-- center text -->
+      <g>
+        <text x="700" y="200" text-anchor="middle" font-size="13" class="t-mute t-mono">CLOSED-LOOP</text>
+        <text x="700" y="222" text-anchor="middle" font-size="13" class="t-mute t-mono">IMPROVEMENT</text>
+      </g>
+      <!-- bottom legend -->
+      <rect x="80" y="400" width="1240" height="0" stroke="none"/>
+    </svg>
+  </div>
+  <p class="reveal r3 sub" style="text-align:center;margin-top:12px"><strong>The key insight:</strong> models trained on yesterday's data don't get better on their own. We close the loop — every recommendation gets paired with an outcome, every outcome becomes training data, every retrain refines the next recommendation. <span class="pill green" style="margin-left:8px">compounds over time</span></p>
+</section>
+
+<!-- 12: Adjuster day before/after -->
+<section class="slide">
+  <div class="reveal r1 header">
+    <span class="num">11 / IN PRACTICE</span>
+    <h2>A day in the life · before and after</h2>
+  </div>
+  <div class="reveal r2 ba">
+    <div class="card b">
+      <h3><span class="tag">BEFORE</span>Adjuster · 150+ open files</h3>
+      <ul style="list-style:none;padding-left:0;margin-top:10px">
+        <li style="padding:8px 0;border-bottom:1px dashed var(--line)"><span class="mono" style="color:var(--text-mute);margin-right:10px">08:00</span>Open inbox · 14 unread · prioritize by urgency intuition</li>
+        <li style="padding:8px 0;border-bottom:1px dashed var(--line)"><span class="mono" style="color:var(--text-mute);margin-right:10px">08:30</span>Re-key medical records into claim system (PDF arrived overnight)</li>
+        <li style="padding:8px 0;border-bottom:1px dashed var(--line)"><span class="mono" style="color:var(--text-mute);margin-right:10px">09:15</span>Review 12 medical-only claims — read full file each time</li>
+        <li style="padding:8px 0;border-bottom:1px dashed var(--line)"><span class="mono" style="color:var(--text-mute);margin-right:10px">11:00</span>Phone tag with NCM about file from 6 weeks ago</li>
+        <li style="padding:8px 0;border-bottom:1px dashed var(--line)"><span class="mono" style="color:var(--text-mute);margin-right:10px">13:00</span>Spot-check vendor invoices — line by line, on hunches</li>
+        <li style="padding:8px 0;border-bottom:1px dashed var(--line)"><span class="mono" style="color:var(--text-mute);margin-right:10px">15:00</span>Search prior notes for context on a litigated file</li>
+        <li style="padding:8px 0"><span class="mono" style="color:var(--text-mute);margin-right:10px">17:30</span>Behind on diary tasks · come in early tomorrow</li>
+      </ul>
+      <p style="margin-top:10px"><span class="pill red">PROBLEM</span>&nbsp;&nbsp;Adjuster is the orchestrator. Caseload &gt; quality threshold.</p>
+    </div>
+    <div class="card a">
+      <h3><span class="tag">AFTER</span>Adjuster · 120 complexity-weighted</h3>
+      <ul style="list-style:none;padding-left:0;margin-top:10px">
+        <li style="padding:8px 0;border-bottom:1px dashed var(--line)"><span class="mono" style="color:var(--text-mute);margin-right:10px">08:00</span>Worklist already prioritized by severity + urgency drift</li>
+        <li style="padding:8px 0;border-bottom:1px dashed var(--line)"><span class="mono" style="color:var(--text-mute);margin-right:10px">08:15</span>Affirm 9 pre-filed med-only claims · ~90 sec each</li>
+        <li style="padding:8px 0;border-bottom:1px dashed var(--line)"><span class="mono" style="color:var(--text-mute);margin-right:10px">08:30</span>Review one flagged litigation-propensity file · settlement range ready</li>
+        <li style="padding:8px 0;border-bottom:1px dashed var(--line)"><span class="mono" style="color:var(--text-mute);margin-right:10px">10:00</span>NCM-flagged file: nurse already engaged at day 12</li>
+        <li style="padding:8px 0;border-bottom:1px dashed var(--line)"><span class="mono" style="color:var(--text-mute);margin-right:10px">11:30</span>Two vendor anomalies surfaced · decide hold/release</li>
+        <li style="padding:8px 0;border-bottom:1px dashed var(--line)"><span class="mono" style="color:var(--text-mute);margin-right:10px">14:00</span>"What's been tried on this file?" — assistant answers in seconds</li>
+        <li style="padding:8px 0"><span class="mono" style="color:var(--text-mute);margin-right:10px">17:00</span>Caught up · time for relationship-side of the job</li>
+      </ul>
+      <p style="margin-top:10px"><span class="pill green">WIN</span>&nbsp;&nbsp;Adjuster is the decision-maker. Platform is the orchestrator.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 13: Who decides what -->
+<section class="slide">
+  <div class="reveal r1 header">
+    <span class="num">12 / DIVISION OF LABOR</span>
+    <h2>Who decides what · always</h2>
+  </div>
+  <div class="reveal r2 figure">
+    <svg viewBox="0 0 1400 400" xmlns="http://www.w3.org/2000/svg">
+      <!-- columns -->
+      <g>
+        <rect x="40" y="40" width="430" height="320" rx="14" fill="#152141" stroke="#22d3ee"/>
+        <text x="60" y="72" font-size="12" class="t-cyan t-mono">PLATFORM AUTOMATES</text>
+        <text x="60" y="96" font-size="13" class="t-dim">data work · pattern-matching · pre-fill</text>
+        <g font-size="13">
+          <text x="60" y="138">• Ingest FNOL from any channel</text>
+          <text x="60" y="162">• Extract fields from medical documents</text>
+          <text x="60" y="186">• Compute severity / litigation / duration scores</text>
+          <text x="60" y="210">• Route claims to the right desk</text>
+          <text x="60" y="234">• Flag medical-bill anomalies</text>
+          <text x="60" y="258">• Enforce vendor rate cards</text>
+          <text x="60" y="282">• Trigger NCM referrals on threshold</text>
+          <text x="60" y="306">• Pre-fill claim files for adjuster review</text>
+          <text x="60" y="330">• Track every decision in the audit log</text>
+        </g>
+
+        <rect x="490" y="40" width="430" height="320" rx="14" fill="#152141" stroke="#fbbf24"/>
+        <text x="510" y="72" font-size="12" class="t-amber t-mono">ADJUSTER DECIDES</text>
+        <text x="510" y="96" font-size="13" class="t-dim">judgment · empathy · accountability</text>
+        <g font-size="13">
+          <text x="510" y="138">• Accept or reject every routed recommendation</text>
+          <text x="510" y="162">• Compensability determination</text>
+          <text x="510" y="186">• Payment authorization (above threshold)</text>
+          <text x="510" y="210">• Settlement strategy and authority</text>
+          <text x="510" y="234">• Adjusting reserve up or down</text>
+          <text x="510" y="258">• Vendor selection on complex assignments</text>
+          <text x="510" y="282">• Communication with claimants &amp; counsel</text>
+          <text x="510" y="306">• Override any AI recommendation, with reason</text>
+          <text x="510" y="330">• Closure decision</text>
+        </g>
+
+        <rect x="940" y="40" width="430" height="320" rx="14" fill="#152141" stroke="#a78bfa"/>
+        <text x="960" y="72" font-size="12" class="t-purple t-mono">MANAGER &amp; LEADERSHIP</text>
+        <text x="960" y="96" font-size="13" class="t-dim">guardrails · governance · escalations</text>
+        <g font-size="13">
+          <text x="960" y="138">• Approve new model versions to production</text>
+          <text x="960" y="162">• Review bias-testing results</text>
+          <text x="960" y="186">• Approve threshold changes (auto-pay, etc.)</text>
+          <text x="960" y="210">• Escalation review for high-severity files</text>
+          <text x="960" y="234">• Vendor relationship decisions</text>
+          <text x="960" y="258">• Operating-model and policy changes</text>
+          <text x="960" y="282">• DOI / regulator engagement</text>
+          <text x="960" y="306">• Strategic priorities and resource allocation</text>
+          <text x="960" y="330">• Final accountability for outcomes</text>
+        </g>
+      </g>
+    </svg>
+  </div>
+  <p class="reveal r3 sub" style="margin-top:8px;text-align:center"><strong>Hard rule baked into the platform:</strong> no automated denial of compensability, treatment, or payment. The platform recommends; a licensed adjuster always decides. <span class="pill red" style="margin-left:8px">non-negotiable</span></p>
+</section>
+
+<!-- 14: Outcomes you'll see -->
+<section class="slide">
+  <div class="reveal r1 header">
+    <span class="num">13 / WHAT YOU'LL SEE</span>
+    <h2>Outcomes on the dashboards · month over month</h2>
+  </div>
+  <div class="reveal r2 figure">
+    <svg viewBox="0 0 1400 410" xmlns="http://www.w3.org/2000/svg">
+      <!-- 4 KPI tiles -->
+      <g>
+        <!-- LAE ratio trend -->
+        <rect x="40" y="40" width="320" height="170" rx="12" fill="#152141" stroke="#22325c"/>
+        <text x="60" y="68" font-size="12" class="t-mute t-mono">KPI · LAE RATIO</text>
+        <text x="60" y="100" font-size="32" font-weight="700" class="t-cyan">12.5% → 10.0%</text>
+        <text x="60" y="124" font-size="13" class="t-dim">36 months · target band 9.8–10.2%</text>
+        <!-- mini sparkline -->
+        <polyline points="60,180 100,176 140,170 180,164 220,156 260,145 300,135 340,128" fill="none" stroke="#34d399" stroke-width="3"/>
+        <text x="60" y="200" font-size="11" class="t-mute t-mono">M0  ───  M36</text>
+
+        <!-- Touchless rate -->
+        <rect x="380" y="40" width="320" height="170" rx="12" fill="#152141" stroke="#22325c"/>
+        <text x="400" y="68" font-size="12" class="t-mute t-mono">KPI · MED-ONLY TOUCHLESS</text>
+        <text x="400" y="100" font-size="32" font-weight="700" class="t-cyan">0% → 35%</text>
+        <text x="400" y="124" font-size="13" class="t-dim">conservative cap · adjuster always affirms</text>
+        <polyline points="400,200 440,200 480,194 520,184 560,170 600,158 640,150 680,142" fill="none" stroke="#34d399" stroke-width="3"/>
+        <text x="400" y="200" font-size="11" class="t-mute t-mono">M0  ───  M36</text>
+
+        <!-- Vendor spend per claim -->
+        <rect x="720" y="40" width="320" height="170" rx="12" fill="#152141" stroke="#22325c"/>
+        <text x="740" y="68" font-size="12" class="t-mute t-mono">KPI · VENDOR SPEND / CLAIM</text>
+        <text x="740" y="100" font-size="32" font-weight="700" class="t-cyan">−15%</text>
+        <text x="740" y="124" font-size="13" class="t-dim">managed vendor categories · year 2</text>
+        <polyline points="740,170 780,168 820,166 860,162 900,156 940,148 980,138 1020,130" fill="none" stroke="#34d399" stroke-width="3"/>
+        <text x="740" y="200" font-size="11" class="t-mute t-mono">M0  ───  M36</text>
+
+        <!-- Adjuster capacity -->
+        <rect x="1060" y="40" width="320" height="170" rx="12" fill="#152141" stroke="#22325c"/>
+        <text x="1080" y="68" font-size="12" class="t-mute t-mono">KPI · ADJUSTER CAPACITY</text>
+        <text x="1080" y="100" font-size="32" font-weight="700" class="t-cyan">+25%</text>
+        <text x="1080" y="124" font-size="13" class="t-dim">complexity-weighted · no quality loss</text>
+        <polyline points="1080,180 1120,178 1160,174 1200,168 1240,160 1280,150 1320,142 1360,134" fill="none" stroke="#34d399" stroke-width="3"/>
+        <text x="1080" y="200" font-size="11" class="t-mute t-mono">M0  ───  M36</text>
+      </g>
+
+      <!-- bottom row: leading indicators -->
+      <g>
+        <rect x="40" y="230" width="320" height="160" rx="12" fill="#0f1830" stroke="#22325c"/>
+        <text x="60" y="258" font-size="12" class="t-mute t-mono">LEADING</text>
+        <text x="60" y="284" font-size="16">Median time-to-NCM-referral</text>
+        <text x="60" y="318" font-size="28" font-weight="700" class="t-amber">60d → 14d</text>
+        <text x="60" y="350" font-size="13" class="t-dim">target for qualifying lost-time claims</text>
+
+        <rect x="380" y="230" width="320" height="160" rx="12" fill="#0f1830" stroke="#22325c"/>
+        <text x="400" y="258" font-size="12" class="t-mute t-mono">LEADING</text>
+        <text x="400" y="284" font-size="16">Bill-anomaly catch rate</text>
+        <text x="400" y="318" font-size="28" font-weight="700" class="t-amber">— → 4–7%</text>
+        <text x="400" y="350" font-size="13" class="t-dim">of medical bill spend flagged for review</text>
+
+        <rect x="720" y="230" width="320" height="160" rx="12" fill="#0f1830" stroke="#22325c"/>
+        <text x="740" y="258" font-size="12" class="t-mute t-mono">LEADING</text>
+        <text x="740" y="284" font-size="16">Litigation-propensity precision</text>
+        <text x="740" y="318" font-size="28" font-weight="700" class="t-amber">> 0.65 AUC</text>
+        <text x="740" y="350" font-size="13" class="t-dim">within 30 days of FNOL</text>
+
+        <rect x="1060" y="230" width="320" height="160" rx="12" fill="#0f1830" stroke="#22325c"/>
+        <text x="1080" y="258" font-size="12" class="t-mute t-mono">GOVERNANCE</text>
+        <text x="1080" y="284" font-size="16">Decision audit coverage</text>
+        <text x="1080" y="318" font-size="28" font-weight="700" class="t-green">100%</text>
+        <text x="1080" y="350" font-size="13" class="t-dim">every AI-influenced decision traceable</text>
+      </g>
+    </svg>
+  </div>
+</section>
+
+<!-- 15: Wrap up -->
+<section class="slide">
+  <div class="reveal r1 header">
+    <span class="num">14 / TO SUMMARIZE</span>
+    <h2>The whole thing in one sentence — and one picture</h2>
+  </div>
+  <div class="reveal r2 figure" style="max-height:50vh">
+    <svg viewBox="0 0 1400 320" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arrF" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#22d3ee"/></marker>
+        <linearGradient id="grFinal" x1="0" x2="1" y1="0" y2="0">
+          <stop offset="0" stop-color="#22d3ee" stop-opacity=".2"/>
+          <stop offset="1" stop-color="#fbbf24" stop-opacity=".2"/>
+        </linearGradient>
+      </defs>
+      <rect x="40" y="60" width="1320" height="200" rx="20" fill="url(#grFinal)" stroke="#22d3ee" stroke-opacity=".4"/>
+      <text x="700" y="120" text-anchor="middle" font-size="22" font-weight="700">A claim arrives.</text>
+      <text x="700" y="155" text-anchor="middle" font-size="22" font-weight="700">The platform sees · scores · routes · pre-fills · watches.</text>
+      <text x="700" y="190" text-anchor="middle" font-size="22" font-weight="700">A licensed adjuster decides.</text>
+      <text x="700" y="225" text-anchor="middle" font-size="22" font-weight="700" class="t-green">The outcome teaches the next decision.</text>
+    </svg>
+  </div>
+  <p class="reveal r3 lead" style="text-align:center;margin-top:18px;max-width:1100px;margin-left:auto;margin-right:auto"><strong>That is the platform.</strong> Everything else — the seven domains, the models, the dashboards, the audit log, the regulatory posture — exists to make that one sentence true, at scale, every day, in every jurisdiction.</p>
+  <div class="reveal r4" style="text-align:center;margin-top:22px">
+    <span class="pill" style="margin:0 4px">−2.0 to −2.5 LAE pts / 36 mo</span>
+    <span class="pill green" style="margin:0 4px">$10–12M annual run-rate · $500M book</span>
+    <span class="pill purple" style="margin:0 4px">7 capability domains · 1 data backbone</span>
+    <span class="pill amber" style="margin:0 4px">Human decides · always</span>
+  </div>
+</section>
+
+</div>
+
+<div class="navhint"><kbd>←</kbd><kbd>→</kbd> navigate · <kbd>F</kbd> fullscreen</div>
+
+<script>
+  const slides=[...document.querySelectorAll('.slide')];
+  const total=slides.length;
+  document.getElementById('slideTotal').textContent=total;
+  let idx=0;
+  function go(n){
+    idx=Math.max(0,Math.min(total-1,n));
+    slides.forEach((s,i)=>s.classList.toggle('active',i===idx));
+    document.getElementById('slideNum').textContent=idx+1;
+    document.getElementById('progress').style.width=((idx+1)/total*100)+'%';
+  }
+  document.addEventListener('keydown',e=>{
+    if(e.key==='ArrowRight'||e.key===' '||e.key==='PageDown')go(idx+1);
+    else if(e.key==='ArrowLeft'||e.key==='PageUp')go(idx-1);
+    else if(e.key==='Home')go(0);
+    else if(e.key==='End')go(total-1);
+    else if(e.key==='f'||e.key==='F'){if(!document.fullscreenElement)document.documentElement.requestFullscreen();else document.exitFullscreen();}
+  });
+  document.addEventListener('click',e=>{
+    if(e.target.closest('.navhint'))return;
+    const x=e.clientX/window.innerWidth;
+    if(x>0.6)go(idx+1);else if(x<0.4)go(idx-1);
+  });
+  go(0);
+</script>
+</body>
+</html>

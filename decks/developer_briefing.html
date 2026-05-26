@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Developer Briefing — LAE Optimization Platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0f1c;
+    --bg-2:#0e1528;
+    --panel:#131c34;
+    --panel-2:#1a2545;
+    --line:#1f2c4f;
+    --text:#e8eef9;
+    --text-dim:#94a5c3;
+    --text-mute:#6b7da0;
+    --accent:#7dd3fc;
+    --accent-2:#a78bfa;
+    --accent-3:#34d399;
+    --warn:#fbbf24;
+    --bad:#f87171;
+    --good:#34d399;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+  body::before{
+    content:"";position:fixed;inset:0;
+    background-image:
+      radial-gradient(900px 600px at 80% -10%, rgba(167,139,250,0.10), transparent 60%),
+      radial-gradient(800px 500px at 0% 20%, rgba(125,211,252,0.08), transparent 60%),
+      linear-gradient(transparent 95%, rgba(159,176,201,0.05) 95%),
+      linear-gradient(90deg, transparent 95%, rgba(159,176,201,0.05) 95%);
+    background-size:auto,auto,40px 40px,40px 40px;
+    pointer-events:none;
+  }
+
+  .deck{position:relative;width:100vw;height:100vh}
+  .slide{
+    position:absolute;inset:0;display:none;flex-direction:column;justify-content:center;
+    padding:6.5vh 8vw;opacity:0;transform:translateY(20px);
+    transition:opacity .55s ease, transform .55s ease;
+  }
+  .slide.active{display:flex;opacity:1;transform:translateY(0)}
+  .slide.active .reveal{animation:revealUp .65s ease both}
+  .slide.active .reveal-1{animation-delay:.08s}
+  .slide.active .reveal-2{animation-delay:.18s}
+  .slide.active .reveal-3{animation-delay:.28s}
+  .slide.active .reveal-4{animation-delay:.38s}
+  .slide.active .reveal-5{animation-delay:.48s}
+  .slide.active .reveal-6{animation-delay:.58s}
+  .slide.active .reveal-7{animation-delay:.68s}
+  @keyframes revealUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+
+  .chrome{position:fixed;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:18px 28px;font-size:12px;color:var(--text-dim);letter-spacing:.04em;text-transform:uppercase;z-index:50}
+  .chrome.top{top:0}
+  .chrome.bot{bottom:0}
+  .brand{display:flex;align-items:center;gap:10px;font-family:'JetBrains Mono',monospace}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--accent-3);box-shadow:0 0 12px var(--accent-3)}
+  .progress{position:fixed;top:0;left:0;height:3px;background:linear-gradient(90deg,var(--accent),var(--accent-2),var(--accent-3));transition:width .5s ease;z-index:60}
+
+  .kicker{color:var(--accent);font-size:11px;letter-spacing:.24em;text-transform:uppercase;font-weight:600;margin-bottom:18px;font-family:'JetBrains Mono',monospace}
+  h1{font-size:clamp(36px,5vw,68px);font-weight:800;line-height:1.05;letter-spacing:-.02em}
+  h1 .em{background:linear-gradient(135deg,var(--accent),var(--accent-2));-webkit-background-clip:text;background-clip:text;color:transparent}
+  h2{font-size:clamp(26px,3.4vw,42px);font-weight:700;line-height:1.1;letter-spacing:-.015em;margin-bottom:22px}
+  h3{font-size:clamp(17px,1.55vw,21px);font-weight:600;color:var(--text);margin-bottom:8px}
+  p, li{font-size:clamp(14px,1.18vw,17px);line-height:1.55;color:var(--text-dim)}
+  .lead{font-size:clamp(18px,1.55vw,24px);color:var(--text);line-height:1.5}
+  strong, b{color:var(--text);font-weight:600}
+  .accent{color:var(--accent)}.accent-2{color:var(--accent-2)}.accent-3{color:var(--accent-3)}
+  .mono{font-family:'JetBrains Mono',monospace}
+  code{font-family:'JetBrains Mono',monospace;font-size:.92em;padding:2px 7px;border-radius:5px;background:var(--bg-2);border:1px solid var(--line);color:var(--accent)}
+
+  .grid{display:grid;gap:20px}
+  .grid-2{grid-template-columns:1fr 1fr}
+  .grid-3{grid-template-columns:1fr 1fr 1fr}
+  .grid-4{grid-template-columns:repeat(4,1fr)}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px;transition:transform .3s ease, border-color .3s ease}
+  .card:hover{transform:translateY(-3px);border-color:var(--accent)}
+  .card .tag{font-family:'JetBrains Mono',monospace;color:var(--accent);font-size:11px;letter-spacing:.1em;margin-bottom:10px;text-transform:uppercase}
+
+  .pill{display:inline-flex;align-items:center;gap:6px;font-size:11px;padding:3px 9px;border-radius:999px;background:rgba(125,211,252,.08);border:1px solid rgba(125,211,252,.3);color:var(--accent);font-weight:500;font-family:'JetBrains Mono',monospace;letter-spacing:.04em}
+  .pill.purple{background:rgba(167,139,250,.08);border-color:rgba(167,139,250,.3);color:var(--accent-2)}
+  .pill.green{background:rgba(52,211,153,.08);border-color:rgba(52,211,153,.3);color:var(--accent-3)}
+  .pill.warn{background:rgba(251,191,36,.08);border-color:rgba(251,191,36,.3);color:var(--warn)}
+  .pill.bad{background:rgba(248,113,113,.08);border-color:rgba(248,113,113,.3);color:var(--bad)}
+
+  ul.bullets{list-style:none;padding-left:0}
+  ul.bullets li{position:relative;padding-left:20px;margin-bottom:8px}
+  ul.bullets li::before{content:"›";position:absolute;left:0;color:var(--accent);font-weight:700}
+
+  .badge{display:inline-block;padding:5px 11px;background:var(--bg-2);border:1px solid var(--line);border-radius:6px;font-size:12px;color:var(--text-dim);font-family:'JetBrains Mono',monospace;margin:3px 4px 3px 0}
+  .badge.acc{color:var(--accent);border-color:rgba(125,211,252,.4)}
+
+  /* system-context diagram */
+  .sys{display:grid;grid-template-rows:auto auto auto auto;gap:14px;margin-top:14px}
+  .sys-row{display:grid;gap:14px;align-items:stretch}
+  .sys-row.r3{grid-template-columns:repeat(3,1fr)}
+  .sys-row.r4{grid-template-columns:repeat(4,1fr)}
+  .sys-row.r7{grid-template-columns:repeat(7,1fr)}
+  .sys-box{padding:14px 12px;background:var(--panel);border:1px solid var(--line);border-radius:10px;text-align:center;font-size:12px;color:var(--text)}
+  .sys-box .lbl{font-size:10px;letter-spacing:.16em;color:var(--text-mute);text-transform:uppercase;margin-bottom:4px;font-family:'JetBrains Mono',monospace}
+  .sys-box.core{background:linear-gradient(135deg,rgba(125,211,252,.08),rgba(167,139,250,.06));border-color:rgba(167,139,250,.4);color:var(--text)}
+  .sys-box.data{background:rgba(52,211,153,.05);border-color:rgba(52,211,153,.3);color:var(--accent-3)}
+  .sys-box.ext{background:var(--bg-2);border-style:dashed;color:var(--text-dim)}
+
+  .arrows{height:14px;position:relative}
+  .arrows::before{content:"↑    ↑    ↑    ↑    ↑";display:block;text-align:center;color:var(--text-mute);font-size:12px;letter-spacing:60px}
+
+  /* phase cards */
+  .phase{position:relative;padding:20px;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
+  .phase::before{content:"";position:absolute;left:-2px;top:14px;bottom:14px;width:3px;border-radius:3px;background:linear-gradient(180deg,var(--accent),var(--accent-2))}
+  .phase h3{display:flex;justify-content:space-between;align-items:baseline}
+  .phase .when{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text-mute);font-weight:400}
+  .phase ul{margin-top:10px;list-style:none;padding-left:0}
+  .phase li{font-size:13px;color:var(--text-dim);padding-left:14px;position:relative;margin-bottom:5px}
+  .phase li::before{content:"–";position:absolute;left:0;color:var(--accent)}
+  .phase .impact{margin-top:12px;font-size:12px;color:var(--accent-3);font-weight:600;font-family:'JetBrains Mono',monospace}
+
+  .kv-list{display:grid;grid-template-columns:200px 1fr;gap:8px 18px;margin-top:10px}
+  .kv-list dt{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--accent);letter-spacing:.04em}
+  .kv-list dd{font-size:14px;color:var(--text-dim)}
+
+  .nfr-row{display:grid;grid-template-columns:120px 1fr;gap:14px;align-items:start;padding:14px 0;border-bottom:1px dashed var(--line)}
+  .nfr-row:last-child{border-bottom:none}
+  .nfr-row .id{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--accent);letter-spacing:.04em}
+  .nfr-row .desc{font-size:14px;color:var(--text-dim)}
+  .nfr-row .desc b{color:var(--text)}
+
+  .navhint{position:fixed;right:28px;bottom:24px;font-size:11px;color:var(--text-mute);letter-spacing:.1em;text-transform:uppercase;display:flex;gap:8px;align-items:center;font-family:'JetBrains Mono',monospace}
+  kbd{font-family:'JetBrains Mono',monospace;font-size:11px;padding:3px 7px;border:1px solid var(--line);border-radius:5px;background:var(--bg-2);color:var(--text)}
+
+  .title-slide{align-items:flex-start;justify-content:center}
+  .title-slide .meta{display:flex;gap:28px;margin-top:30px;flex-wrap:wrap}
+  .title-slide .meta div{display:flex;flex-direction:column}
+  .title-slide .meta .k{font-size:10px;letter-spacing:.2em;color:var(--text-mute);text-transform:uppercase;font-family:'JetBrains Mono',monospace}
+  .title-slide .meta .v{font-size:15px;color:var(--text);font-weight:500;margin-top:4px}
+</style>
+</head>
+<body>
+
+<div class="progress" id="progress" style="width:0%"></div>
+<div class="chrome top">
+  <div class="brand"><span class="dot"></span><span>lae-platform / developer-briefing</span></div>
+  <div>Engineering · Tech-Agnostic · v0.1</div>
+</div>
+<div class="chrome bot">
+  <div>2026 · Prepared for the platform engineering team</div>
+  <div><span id="slideNum">1</span> / <span id="slideTotal">17</span></div>
+</div>
+
+<div class="deck" id="deck">
+
+  <!-- 1: Title -->
+  <section class="slide title-slide active">
+    <div class="reveal reveal-1 kicker">Engineering Briefing · LAE Optimization Platform</div>
+    <h1 class="reveal reveal-2">What we build,<br/>how it <span class="em">fits together</span>,<br/>and what ships first.</h1>
+    <div class="reveal reveal-3 lead" style="margin-top:24px;max-width:1000px;color:var(--text-dim)">A capability-domain briefing for the engineering team. Tech-agnostic — we describe what; the stack is chosen in detailed design.</div>
+    <div class="meta reveal reveal-4">
+      <div><span class="k">Carrier</span><span class="v">Mid-size monoline WC · $300M–$1B DWP</span></div>
+      <div><span class="k">Primary lever</span><span class="v">LAE (ALAE + ULAE)</span></div>
+      <div><span class="k">Target</span><span class="v">−2.0 to −2.5 LAE pts / 36 mo</span></div>
+      <div><span class="k">Posture</span><span class="v">Layer above the claims core · not a replacement</span></div>
+    </div>
+  </section>
+
+  <!-- 2: Mission -->
+  <section class="slide">
+    <div class="reveal reveal-1 kicker">// mission</div>
+    <h2 class="reveal reveal-2">What we are actually shipping</h2>
+    <div class="grid grid-2 reveal reveal-3" style="margin-top:8px">
+      <div class="card">
+        <div class="tag">PRINCIPLE</div>
+        <h3>Orchestration, not core replacement</h3>
+        <p>The platform <strong>consumes events</strong> from claims/policy/billing and <strong>injects decisions/recommendations</strong> back. We do not own the system of record; we own the decision surface above it.</p>
+      </div>
+      <div class="card">
+        <div class="tag">PRINCIPLE</div>
+        <h3>Capability domains, bounded contexts</h3>
+        <p>Seven capability domains, each owning its data, models, and APIs. Internal coordination via events. External coordination via well-defined contracts.</p>
+      </div>
+      <div class="card">
+        <div class="tag">PRINCIPLE</div>
+        <h3>ML lives <em>inside</em> the capability</h3>
+        <p>Severity score lives in Intake. Litigation propensity lives in Litigation. Bill anomaly detection lives in Medical. There is no separate "AI module." The ML platform serves them; it does not host the business logic.</p>
+      </div>
+      <div class="card">
+        <div class="tag">PRINCIPLE</div>
+        <h3>Compliance is engineered in, not bolted on</h3>
+        <p>Audit trail, explainability, and human-in-the-loop are <strong>cross-cutting NFRs from day one</strong>, not a phase-3 retrofit. Every model-influenced action is traceable end-to-end.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3: System context diagram -->
+  <section class="slide">
+    <div class="reveal reveal-1 kicker">// system context</div>
+    <h2 class="reveal reveal-2">Where the platform sits</h2>
+    <div class="sys reveal reveal-3">
+      <div class="sys-row r4">
+        <div class="sys-box ext"><div class="lbl">channel</div>FNOL channels</div>
+        <div class="sys-box ext"><div class="lbl">channel</div>Agent / Broker portals</div>
+        <div class="sys-box ext"><div class="lbl">channel</div>EDI · State FROI/SROI</div>
+        <div class="sys-box ext"><div class="lbl">channel</div>Vendor invoicing</div>
+      </div>
+      <div class="arrows"></div>
+      <div class="sys-row r7">
+        <div class="sys-box core"><div class="lbl">domain 1</div>Intake &amp;<br/>Intelligence</div>
+        <div class="sys-box core"><div class="lbl">domain 2</div>Triage &amp;<br/>Assignment</div>
+        <div class="sys-box core"><div class="lbl">domain 3</div>Medical<br/>Management</div>
+        <div class="sys-box core"><div class="lbl">domain 4</div>Litigation<br/>Management</div>
+        <div class="sys-box core"><div class="lbl">domain 5</div>Vendor<br/>Orchestration</div>
+        <div class="sys-box core"><div class="lbl">domain 6</div>Reserve &amp;<br/>Reporting</div>
+        <div class="sys-box core"><div class="lbl">domain 7</div>Data &amp; ML<br/>Platform</div>
+      </div>
+      <div class="arrows"></div>
+      <div class="sys-row r4">
+        <div class="sys-box"><div class="lbl">system of record</div>Claims core (GW / DC / OG / in-house)</div>
+        <div class="sys-box"><div class="lbl">system of record</div>Policy admin</div>
+        <div class="sys-box"><div class="lbl">system of record</div>Billing</div>
+        <div class="sys-box"><div class="lbl">system of record</div>Finance ERP</div>
+      </div>
+    </div>
+    <p class="reveal reveal-4" style="margin-top:24px"><strong>Communication style:</strong> event-driven, idempotent. Inbound: change events from cores. Outbound: <code>RecommendationProduced</code>, <code>TaskAssigned</code>, <code>AnomalyDetected</code>, <code>DecisionLogged</code>.</p>
+  </section>
+
+  <!-- 4: 7 capability domains overview -->
+  <section class="slide">
+    <div class="reveal reveal-1 kicker">// capability domains</div>
+    <h2 class="reveal reveal-2">Seven domains · scope at a glance</h2>
+    <div class="grid grid-4 reveal reveal-3">
+      <div class="card"><div class="tag">DOMAIN 1</div><h3>Intake &amp; Intelligence</h3><p>FNOL ingestion · document AI · early severity scoring · channel normalization</p></div>
+      <div class="card"><div class="tag">DOMAIN 2</div><h3>Triage &amp; Assignment</h3><p>Routing rules · caseload balancing · NCM referral triggers · escalation</p></div>
+      <div class="card"><div class="tag">DOMAIN 3</div><h3>Medical Management</h3><p>Bill review · provider scoring · network steering · NCM workflow</p></div>
+      <div class="card"><div class="tag">DOMAIN 4</div><h3>Litigation Management</h3><p>Litigation propensity · early settlement · counsel scoring · settlement ranges</p></div>
+      <div class="card"><div class="tag">DOMAIN 5</div><h3>Vendor Orchestration</h3><p>Vendor master · rate cards · invoice validation · performance scorecards · fraud detection</p></div>
+      <div class="card"><div class="tag">DOMAIN 6</div><h3>Reserve &amp; Reporting</h3><p>Actuarial extracts · IBNR support · IEE allocation · dashboards · exec scorecards</p></div>
+      <div class="card"><div class="tag">DOMAIN 7</div><h3>Data &amp; ML Platform</h3><p>Event ingestion · canonical model · feature store · model registry · monitoring</p></div>
+      <div class="card" style="background:linear-gradient(135deg,rgba(167,139,250,.10),rgba(125,211,252,.05));border-color:rgba(167,139,250,.4)"><div class="tag" style="color:var(--accent-2)">CROSS-CUTTING</div><h3>Audit · Explainability · HITL</h3><p>Decision provenance · model cards · override mechanics · bias monitoring</p></div>
+    </div>
+  </section>
+
+  <!-- 5: Domain 1 -->
+  <section class="slide">
+    <div class="reveal reveal-1 kicker">// domain 1 · intake &amp; intelligence</div>
+    <h2 class="reveal reveal-2">Intake &amp; Intelligence</h2>
+    <div class="grid grid-2 reveal reveal-3">
+      <div>
+        <h3>What it does</h3>
+        <ul class="bullets">
+          <li>Ingests FNOL from every channel into a canonical <code>FNOL</code> aggregate.</li>
+          <li>Runs document AI over medical records, FNOL artifacts, wage statements.</li>
+          <li>Produces an <code>EarlySeverityScore</code> within 24h of FNOL.</li>
+          <li>Emits <code>FNOLIngested</code>, <code>DocumentParsed</code>, <code>SeverityScored</code>.</li>
+        </ul>
+        <h3 style="margin-top:18px">Key models</h3>
+        <ul class="bullets">
+          <li><code>severity-v1</code> — gradient-boosted; explainable; SHAP per prediction.</li>
+          <li>Document classifier + field extractor (buy, not build).</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Contracts</h3>
+        <div>
+          <span class="badge acc">POST /fnol</span>
+          <span class="badge acc">GET /claim/{id}/severity</span>
+          <span class="badge acc">GET /document/{id}/extraction</span>
+        </div>
+        <h3 style="margin-top:18px">Consumes</h3>
+        <div><span class="badge">claims-core::FNOLCreated</span><span class="badge">documents::Uploaded</span></div>
+        <h3 style="margin-top:18px">Produces</h3>
+        <div><span class="badge">intake::FNOLIngested</span><span class="badge">intake::SeverityScored</span><span class="badge">intake::DocumentParsed</span></div>
+        <h3 style="margin-top:18px">Owns data</h3>
+        <p>FNOL canonical record · document extractions · severity score history · feature vectors</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6: Domain 2 -->
+  <section class="slide">
+    <div class="reveal reveal-1 kicker">// domain 2 · triage &amp; assignment</div>
+    <h2 class="reveal reveal-2">Triage &amp; Assignment</h2>
+    <div class="grid grid-2 reveal reveal-3">
+      <div>
+        <h3>What it does</h3>
+        <ul class="bullets">
+          <li>Recommends desk routing based on severity, jurisdiction, complexity, current load.</li>
+          <li>Maintains dynamic caseload balance — complexity-weighted, not raw open-count.</li>
+          <li>Triggers nurse case management referral when duration/severity criteria cross threshold (target: by day 14 for qualifying claims).</li>
+          <li>Escalates files drifting from expected trajectory.</li>
+        </ul>
+        <h3 style="margin-top:18px">Key models</h3>
+        <ul class="bullets">
+          <li><code>duration-v1</code> — expected RTW date prediction; drives drift detection.</li>
+          <li>NCM-referral classifier — should-have-nurse signal.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Contracts</h3>
+        <div>
+          <span class="badge acc">GET /claim/{id}/routing</span>
+          <span class="badge acc">POST /claim/{id}/reassign</span>
+          <span class="badge acc">GET /adjuster/{id}/load</span>
+        </div>
+        <h3 style="margin-top:18px">Consumes</h3>
+        <div><span class="badge">intake::SeverityScored</span><span class="badge">claims-core::ClaimUpdated</span><span class="badge">hr::AdjusterRosterChanged</span></div>
+        <h3 style="margin-top:18px">Produces</h3>
+        <div><span class="badge">triage::RoutingRecommended</span><span class="badge">triage::NCMReferralTriggered</span><span class="badge">triage::EscalationRaised</span></div>
+        <p style="margin-top:14px"><span class="pill warn">RULE</span>&nbsp;&nbsp;Routing recommendations are <strong>recommendations</strong>; the adjuster's supervisor confirms reassignments touching customer continuity.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7: Domain 3 -->
+  <section class="slide">
+    <div class="reveal reveal-1 kicker">// domain 3 · medical management</div>
+    <h2 class="reveal reveal-2">Medical Management</h2>
+    <div class="grid grid-2 reveal reveal-3">
+      <div>
+        <h3>What it does</h3>
+        <ul class="bullets">
+          <li>Real-time anomaly detection on medical bills (upcoding, unbundling, OON).</li>
+          <li>Provider outcome scoring: cost, duration, RTW success rate.</li>
+          <li>Network steering recommendations consistent with MPN/PPO rules.</li>
+          <li>NCM workflow: task assignment, documentation, outcome capture.</li>
+        </ul>
+        <h3 style="margin-top:18px">Key models</h3>
+        <ul class="bullets">
+          <li><code>bill-anomaly-v1</code> — anomaly detection over bill features + CPT history.</li>
+          <li><code>provider-score-v1</code> — outcome-adjusted ranking with case-mix controls.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Contracts</h3>
+        <div>
+          <span class="badge acc">POST /bill/review</span>
+          <span class="badge acc">GET /provider/{npi}/score</span>
+          <span class="badge acc">POST /claim/{id}/ncm-task</span>
+        </div>
+        <h3 style="margin-top:18px">Consumes</h3>
+        <div><span class="badge">vendor::BillReceived</span><span class="badge">medical::TreatmentRecorded</span></div>
+        <h3 style="margin-top:18px">Produces</h3>
+        <div><span class="badge">medical::BillAnomalyDetected</span><span class="badge">medical::ProviderScored</span><span class="badge">medical::SteeringSuggested</span></div>
+        <p style="margin-top:14px"><span class="pill warn">RULE</span>&nbsp;&nbsp;<strong>No auto-denial of treatment.</strong> Anomalies flow to adjuster review with rationale.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8: Domain 4 -->
+  <section class="slide">
+    <div class="reveal reveal-1 kicker">// domain 4 · litigation management</div>
+    <h2 class="reveal reveal-2">Litigation Management</h2>
+    <div class="grid grid-2 reveal reveal-3">
+      <div>
+        <h3>What it does</h3>
+        <ul class="bullets">
+          <li>Litigation propensity score within 30 days of FNOL.</li>
+          <li>Early settlement workflow for high-propensity files meeting criteria.</li>
+          <li>Defense counsel selection + rate card application.</li>
+          <li>Settlement reserve range from historical comparables, case-mix adjusted.</li>
+        </ul>
+        <h3 style="margin-top:18px">Key models</h3>
+        <ul class="bullets">
+          <li><code>litigation-propensity-v1</code> — P(attorney represented) from claim features + adjuster note NLP.</li>
+          <li><code>settlement-range-v1</code> — nearest-neighbor with calibration.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Contracts</h3>
+        <div>
+          <span class="badge acc">GET /claim/{id}/litigation-score</span>
+          <span class="badge acc">GET /claim/{id}/settlement-range</span>
+          <span class="badge acc">POST /counsel/assign</span>
+        </div>
+        <h3 style="margin-top:18px">Consumes</h3>
+        <div><span class="badge">intake::SeverityScored</span><span class="badge">claims-core::NoteAdded</span><span class="badge">legal::PleadingFiled</span></div>
+        <h3 style="margin-top:18px">Produces</h3>
+        <div><span class="badge">lit::PropensityScored</span><span class="badge">lit::SettlementOpportunity</span><span class="badge">lit::CounselScored</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9: Domain 5 -->
+  <section class="slide">
+    <div class="reveal reveal-1 kicker">// domain 5 · vendor orchestration</div>
+    <h2 class="reveal reveal-2">Vendor Orchestration</h2>
+    <div class="grid grid-2 reveal reveal-3">
+      <div>
+        <h3>What it does</h3>
+        <ul class="bullets">
+          <li>Single canonical vendor master, deduplicated across claims/finance.</li>
+          <li>Rate-card enforcement — every invoice validated against contracted rates.</li>
+          <li>Vendor performance scorecard: cost, quality, SLA, claim outcome impact.</li>
+          <li>Anomaly detection on DME, transportation, translation, surveillance billing.</li>
+        </ul>
+        <h3 style="margin-top:18px">Why it matters</h3>
+        <p>15–20% of LAE waste sits in vendor leakage. This domain is the single highest-ROI rules engine in the platform.</p>
+      </div>
+      <div>
+        <h3>Contracts</h3>
+        <div>
+          <span class="badge acc">POST /invoice/validate</span>
+          <span class="badge acc">GET /vendor/{id}/scorecard</span>
+          <span class="badge acc">POST /vendor/{id}/rate-card</span>
+        </div>
+        <h3 style="margin-top:18px">Consumes</h3>
+        <div><span class="badge">finance::InvoiceReceived</span><span class="badge">claims-core::VendorEngaged</span></div>
+        <h3 style="margin-top:18px">Produces</h3>
+        <div><span class="badge">vendor::InvoiceValidated</span><span class="badge">vendor::AnomalyDetected</span><span class="badge">vendor::ScoreUpdated</span></div>
+        <p style="margin-top:14px"><span class="pill green">BUILD</span>&nbsp;&nbsp;No good off-the-shelf product covers WC vendor orchestration end-to-end. This is build.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10: Domain 6 -->
+  <section class="slide">
+    <div class="reveal reveal-1 kicker">// domain 6 · reserve &amp; reporting</div>
+    <h2 class="reveal reveal-2">Reserve &amp; Reporting</h2>
+    <div class="grid grid-2 reveal reveal-3">
+      <div>
+        <h3>What it does</h3>
+        <ul class="bullets">
+          <li>Actuarial extracts — severity-adjusted IBNR inputs, development triangles, segmentations.</li>
+          <li>Statutory expense allocation aligned to IEE Part III.</li>
+          <li>Operational dashboards: LAE by category, state, cohort, adjuster, vendor.</li>
+          <li>Executive scorecard tied to business objectives.</li>
+        </ul>
+        <h3 style="margin-top:18px">Models</h3>
+        <ul class="bullets">
+          <li><strong>No black-box reserve models.</strong> Explainability required — actuarial + DOI.</li>
+          <li>Models are <em>inputs</em> to reserving, never the reserve itself.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Contracts</h3>
+        <div>
+          <span class="badge acc">GET /reserves/extract</span>
+          <span class="badge acc">GET /reporting/iee</span>
+          <span class="badge acc">GET /scorecard/executive</span>
+        </div>
+        <h3 style="margin-top:18px">Consumes</h3>
+        <div><span class="badge">finance::ExpenseRecorded</span><span class="badge">claims-core::ReserveUpdated</span></div>
+        <h3 style="margin-top:18px">Produces</h3>
+        <div><span class="badge">report::ScorecardSnapshot</span><span class="badge">report::IEEAllocation</span></div>
+        <p style="margin-top:14px"><span class="pill">CRITICAL</span>&nbsp;&nbsp;Finance must be able to tie numbers from this domain to the books, exactly.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 11: Domain 7 -->
+  <section class="slide">
+    <div class="reveal reveal-1 kicker">// domain 7 · data &amp; ML platform</div>
+    <h2 class="reveal reveal-2">Data &amp; ML Platform</h2>
+    <div class="grid grid-2 reveal reveal-3">
+      <div>
+        <h3>What it does</h3>
+        <ul class="bullets">
+          <li>Event-driven ingestion from claims/policy/billing/vendors/documents.</li>
+          <li>Canonical claims-centric data model — policy → claim → medical bill → vendor invoice linked.</li>
+          <li>Feature store powering all production ML.</li>
+          <li>Model registry with version, lineage, performance, owner, approvals.</li>
+          <li>Production monitoring: prediction drift, data drift, fairness metrics.</li>
+        </ul>
+        <h3 style="margin-top:18px">Foundational principles</h3>
+        <ul class="bullets">
+          <li>One canonical claim ID across systems.</li>
+          <li>Idempotent processing throughout.</li>
+          <li>PII minimization in non-prod — synthetic/masked data only.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Capabilities surfaced</h3>
+        <div>
+          <span class="badge acc">feature-store</span>
+          <span class="badge acc">model-registry</span>
+          <span class="badge acc">batch-scoring</span>
+          <span class="badge acc">online-scoring</span>
+          <span class="badge acc">drift-monitor</span>
+          <span class="badge acc">decision-log</span>
+        </div>
+        <h3 style="margin-top:18px">Build vs Buy</h3>
+        <div class="kv-list">
+          <dt>BUY</dt><dd>Document AI engine, OCR, medical bill review engine, observability stack</dd>
+          <dt>BUILD</dt><dd>Decision orchestration, feature store, model registry surface, vendor performance layer, claim-360 canonical model</dd>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 12: NFRs cross-cutting -->
+  <section class="slide">
+    <div class="reveal reveal-1 kicker">// non-functional requirements · cross-cutting</div>
+    <h2 class="reveal reveal-2">What must be true everywhere</h2>
+    <div class="reveal reveal-3" style="max-width:1100px">
+      <div class="nfr-row"><div class="id">NF-COMP-01</div><div class="desc"><b>Full audit trail</b> for every AI-influenced decision: model version, inputs, outputs, human overrides, final action. Queryable, retained per regulatory minimums.</div></div>
+      <div class="nfr-row"><div class="id">NF-COMP-02</div><div class="desc"><b>Bias testing</b> pre-deployment and at-least-annually for every production model influencing claim outcomes. Documented; available to regulators.</div></div>
+      <div class="nfr-row"><div class="id">NF-COMP-03</div><div class="desc"><b>Human review</b> required for compensability decisions, payment denials, settlements above defined threshold. Enforced by the rules engine — not optional.</div></div>
+      <div class="nfr-row"><div class="id">NF-COMP-04</div><div class="desc"><b>Jurisdiction-aware</b> rules engine — every state's nuances explicit. Zero single-state-assumption logic anywhere in the codebase.</div></div>
+      <div class="nfr-row"><div class="id">NF-COMP-06</div><div class="desc"><b>Prompt-pay statutes</b> encoded; payment timelines monitored; violations alarmed.</div></div>
+      <div class="nfr-row"><div class="id">NF-SEC-01</div><div class="desc"><b>HIPAA/HITECH-aligned controls</b> for medical data: encryption at rest + in transit, full access logging, role-based access.</div></div>
+      <div class="nfr-row"><div class="id">NF-ARCH-02</div><div class="desc"><b>Idempotent event handlers</b>. Events will be replayed. Downstream actions must be safe to repeat.</div></div>
+      <div class="nfr-row"><div class="id">NF-OPS-01</div><div class="desc"><b>RPO ≤ 1h · RTO ≤ 4h</b> for claims processing capability. <b>99.5% uptime</b> for adjuster-facing surfaces during business hours.</div></div>
+      <div class="nfr-row"><div class="id">NF-EXP-01</div><div class="desc"><b>Per-prediction explainability</b> for any model influencing a money decision. SHAP or equivalent, surfaced in adjuster UI.</div></div>
+    </div>
+  </section>
+
+  <!-- 13: Integration surface -->
+  <section class="slide">
+    <div class="reveal reveal-1 kicker">// integration surface</div>
+    <h2 class="reveal reveal-2">What we connect to — and how</h2>
+    <div class="grid grid-3 reveal reveal-3">
+      <div class="card">
+        <div class="tag">CORES</div>
+        <h3>Claims · Policy · Billing</h3>
+        <p>Event-driven via change-data-capture or native event streams; falling back to API polling where the core does not emit events.</p>
+      </div>
+      <div class="card">
+        <div class="tag">FINANCE</div>
+        <h3>Finance ERP · GL</h3>
+        <p>Outbound expense allocation feeds; reconciliation reports tied to IEE.</p>
+      </div>
+      <div class="card">
+        <div class="tag">DOCS</div>
+        <h3>Document repositories</h3>
+        <p>Inbound document ingestion; outbound structured extractions linked back to the canonical claim.</p>
+      </div>
+      <div class="card">
+        <div class="tag">VENDOR</div>
+        <h3>Medical bill review · DME · Transport</h3>
+        <p>Invoice ingestion + outbound assignment/approval. Standardized vendor adapter pattern.</p>
+      </div>
+      <div class="card">
+        <div class="tag">STATE</div>
+        <h3>FROI/SROI · EDI · MMSEA</h3>
+        <p>Statutory reporting feeds; per-state nuances handled by the rules engine.</p>
+      </div>
+      <div class="card">
+        <div class="tag">EXTERNAL</div>
+        <h3>NCCI · BLS · Provider directories</h3>
+        <p>Reference data; loss costs, wage benchmarks, NPI lookups.</p>
+      </div>
+    </div>
+    <p class="reveal reveal-4" style="margin-top:24px"><strong>Estimated effort split:</strong> ≈50% of program effort is integration. Plan accordingly. Standardize on adapter patterns early.</p>
+  </section>
+
+  <!-- 14: Build sequence -->
+  <section class="slide">
+    <div class="reveal reveal-1 kicker">// build sequence</div>
+    <h2 class="reveal reveal-2">What ships when</h2>
+    <div class="grid grid-3 reveal reveal-3">
+      <div class="phase">
+        <h3>Phase 1 · Foundation <span class="when">M0–M9</span></h3>
+        <ul>
+          <li>Claims-360 data platform (event ingestion + canonical model)</li>
+          <li>Document AI for intake</li>
+          <li>Severity scoring model v1</li>
+          <li>Vendor performance scorecard (rules-driven)</li>
+          <li>Decision-audit-trail framework</li>
+        </ul>
+        <div class="impact">→ 0.4–0.6 LAE pts</div>
+      </div>
+      <div class="phase">
+        <h3>Phase 2 · Optimization <span class="when">M9–M24</span></h3>
+        <ul>
+          <li>Medical-only triage automation (conservative STP)</li>
+          <li>Real-time medical bill anomaly detection</li>
+          <li>Litigation propensity model + early settlement workflow</li>
+          <li>RTW orchestration</li>
+          <li>Dynamic caseload balancing</li>
+        </ul>
+        <div class="impact">→ 1.0–1.2 LAE pts</div>
+      </div>
+      <div class="phase">
+        <h3>Phase 3 · Closed Loop <span class="when">M24–M36</span></h3>
+        <ul>
+          <li>Provider outcome scoring → network steering</li>
+          <li>Vendor billing fraud detection</li>
+          <li>Adjuster knowledge assistant (GenAI)</li>
+          <li>Continuous model-retraining infrastructure</li>
+        </ul>
+        <div class="impact">→ 0.6–0.7 LAE pts</div>
+      </div>
+    </div>
+    <p class="reveal reveal-4" style="margin-top:24px"><strong>Sequencing logic:</strong> Phase 1 lays the data + audit foundation that everything else depends on. Phase 2 introduces models against real outcome data. Phase 3 closes the loop with continuous retraining.</p>
+  </section>
+
+  <!-- 15: Open engineering questions -->
+  <section class="slide">
+    <div class="reveal reveal-1 kicker">// open engineering questions</div>
+    <h2 class="reveal reveal-2">What we still need to decide</h2>
+    <div class="grid grid-2 reveal reveal-3">
+      <div class="card">
+        <div class="tag">OQ-1 · M2</div>
+        <h3>Build vs partner: document AI engine</h3>
+        <p>Buy is preferred for commodity OCR + extraction. Decision: which vendor, and what custom fine-tuning is in scope.</p>
+      </div>
+      <div class="card">
+        <div class="tag">OQ-2 · M1</div>
+        <h3>Claims core integration mode</h3>
+        <p>Native event stream (if Guidewire/DC support it), CDC, or polling. Determines latency budgets across all domains.</p>
+      </div>
+      <div class="card">
+        <div class="tag">OQ-4 · M3</div>
+        <h3>New data platform vs extend EDW</h3>
+        <p>Greenfield lakehouse vs incremental extension of the existing warehouse. Total cost of ownership decision.</p>
+      </div>
+      <div class="card">
+        <div class="tag">OQ-6 · M2</div>
+        <h3>State prioritization for rules engine</h3>
+        <p>Which 5 states first for the jurisdiction-aware rules engine? Recommend top-5 by premium concentration.</p>
+      </div>
+      <div class="card">
+        <div class="tag">OQ-7 · M1</div>
+        <h3>AI governance framework adoption</h3>
+        <p>Adopt the NAIC AI Model Bulletin governance now (across the board), or wait for our specific states to adopt?</p>
+      </div>
+      <div class="card">
+        <div class="tag">OQ-8 · M6</div>
+        <h3>De-identified outcome data sharing</h3>
+        <p>Industry peer benchmarks (NCCI, AAIS) require contributing data. Tradeoffs around competitive signal and legal exposure.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 16: DoD Phase 1 -->
+  <section class="slide">
+    <div class="reveal reveal-1 kicker">// definition of done · phase 1</div>
+    <h2 class="reveal reveal-2">What Phase 1 must demonstrate before Phase 2 starts</h2>
+    <ul class="bullets reveal reveal-3" style="max-width:1100px;margin-top:8px">
+      <li><strong>Canonical claims-360 record</strong> exists for at least 80% of active claims, linking policy → claim → medical bill → vendor invoice.</li>
+      <li><strong>Document AI</strong> in production for at least three document types (medical records, wage statements, FNOL attachments) with measured extraction accuracy.</li>
+      <li><strong>Severity score v1</strong> running on every new FNOL with documented model card, bias-testing report, and SHAP explainability surfaced in the adjuster UI.</li>
+      <li><strong>Vendor scorecard</strong> live across at least the top 80% of vendor spend, with rate cards loaded and invoice validation flagging exceptions.</li>
+      <li><strong>Decision audit trail</strong> capturing every AI-influenced decision; queryable by claim, adjuster, model, time range.</li>
+      <li><strong>Operating-model change</strong> evidenced: at least one cohort of adjusters working the new triage flow with measured time-on-task improvement.</li>
+      <li><strong>LAE impact</strong> measurable: instrumented attribution against a control cohort; on track to capture 0.4–0.6 LAE points within 12 months of Phase 1 completion.</li>
+    </ul>
+  </section>
+
+  <!-- 17: Wrap -->
+  <section class="slide">
+    <div class="reveal reveal-1 kicker">// next steps</div>
+    <h2 class="reveal reveal-2">What we do this week</h2>
+    <div class="grid grid-2 reveal reveal-3" style="margin-top:8px">
+      <div class="card">
+        <div class="tag">DAY 1–3</div>
+        <h3>Confirm the cores we're integrating with</h3>
+        <p>Owner: CIO + Tech Architect. Resolves OQ-2. Determines latency and integration patterns for every downstream domain.</p>
+      </div>
+      <div class="card">
+        <div class="tag">DAY 1–7</div>
+        <h3>Stand up the platform team</h3>
+        <p>Phase 1 squads: Data Foundation, Intake, Vendor, Compliance Cross-cutting. Four squads, ~30 engineers including ML and platform.</p>
+      </div>
+      <div class="card">
+        <div class="tag">DAY 7–14</div>
+        <h3>Resolve build-vs-buy on document AI</h3>
+        <p>Vendor evaluation against three medical document types. Decision rationale documented; selected vendor proven against real claim documents, not vendor demos.</p>
+      </div>
+      <div class="card">
+        <div class="tag">DAY 14–30</div>
+        <h3>Phase 1 detailed plan</h3>
+        <p>Squad-level epics, integration sequencing, NFR test plan, governance plan, change-management plan. Ready for executive review at day 30.</p>
+      </div>
+    </div>
+    <p class="reveal reveal-4 lead" style="margin-top:38px;max-width:1000px"><strong class="accent">Engineering principle for the program:</strong> ship narrow vertical slices that close the loop — FNOL ingest → score → adjuster sees it → outcome captured — before going wide. Compliance, audit, and explainability are part of the first slice, not a later one.</p>
+  </section>
+
+</div>
+
+<div class="navhint"><kbd>←</kbd><kbd>→</kbd> navigate · <kbd>F</kbd> fullscreen</div>
+
+<script>
+  const slides=[...document.querySelectorAll('.slide')];
+  const total=slides.length;
+  document.getElementById('slideTotal').textContent=total;
+  let idx=0;
+  function go(n){
+    idx=Math.max(0,Math.min(total-1,n));
+    slides.forEach((s,i)=>s.classList.toggle('active',i===idx));
+    document.getElementById('slideNum').textContent=idx+1;
+    document.getElementById('progress').style.width=((idx+1)/total*100)+'%';
+  }
+  document.addEventListener('keydown',e=>{
+    if(e.key==='ArrowRight'||e.key===' '||e.key==='PageDown')go(idx+1);
+    else if(e.key==='ArrowLeft'||e.key==='PageUp')go(idx-1);
+    else if(e.key==='Home')go(0);
+    else if(e.key==='End')go(total-1);
+    else if(e.key==='f'||e.key==='F'){if(!document.fullscreenElement)document.documentElement.requestFullscreen();else document.exitFullscreen();}
+  });
+  document.addEventListener('click',e=>{
+    if(e.target.closest('.navhint'))return;
+    const x=e.clientX/window.innerWidth;
+    if(x>0.6)go(idx+1);else if(x<0.4)go(idx-1);
+  });
+  go(0);
+</script>
+
+</body>
+</html>
