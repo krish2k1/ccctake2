@@ -1,0 +1,1214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Architecture Brief — Claims Triage & Vendor Match Layer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a1020;
+    --bg-2:#0f1830;
+    --panel:#152141;
+    --panel-2:#1a2750;
+    --line:#22325c;
+    --line-soft:#1d2a4d;
+    --text:#eaf0fa;
+    --text-dim:#9fb0d0;
+    --text-mute:#6a7da3;
+    --cyan:#22d3ee;
+    --teal:#5eead4;
+    --purple:#a78bfa;
+    --amber:#fbbf24;
+    --orange:#fb923c;
+    --green:#34d399;
+    --red:#f87171;
+    --pink:#f472b6;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+  body::before{
+    content:"";position:fixed;inset:0;
+    background-image:
+      radial-gradient(900px 600px at 90% -10%, rgba(34,211,238,0.10), transparent 60%),
+      radial-gradient(700px 500px at -10% 30%, rgba(167,139,250,0.08), transparent 60%),
+      radial-gradient(600px 400px at 50% 110%, rgba(251,191,36,0.06), transparent 60%);
+    pointer-events:none;
+  }
+  .deck{position:relative;width:100vw;height:100vh}
+  .slide{
+    position:absolute;inset:0;display:none;flex-direction:column;
+    padding:5.5vh 5.5vw;opacity:0;transform:translateY(20px);
+    transition:opacity .55s ease, transform .55s ease;
+  }
+  .slide.active{display:flex;opacity:1;transform:translateY(0)}
+  .slide.active .reveal{animation:revealUp .6s ease both}
+  .slide.active .r1{animation-delay:.05s}
+  .slide.active .r2{animation-delay:.16s}
+  .slide.active .r3{animation-delay:.27s}
+  .slide.active .r4{animation-delay:.38s}
+  .slide.active .r5{animation-delay:.49s}
+  .slide.active .r6{animation-delay:.60s}
+  @keyframes revealUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+  .slide.active .flow-anim{stroke-dasharray:6 6;animation:flow 1.6s linear infinite}
+  @keyframes flow{to{stroke-dashoffset:-24}}
+  .slide.active .pulse{animation:pulse 2.4s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:.55}50%{opacity:1}}
+
+  .chrome{position:fixed;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:14px 24px;font-size:11px;color:var(--text-dim);letter-spacing:.04em;text-transform:uppercase;z-index:50}
+  .chrome.top{top:0}
+  .chrome.bot{bottom:0}
+  .brand{display:flex;align-items:center;gap:10px;font-family:'JetBrains Mono',monospace}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--cyan);box-shadow:0 0 12px var(--cyan)}
+  .progress{position:fixed;top:0;left:0;height:3px;background:linear-gradient(90deg,var(--cyan),var(--purple),var(--amber));transition:width .5s ease;z-index:60}
+
+  .kicker{color:var(--cyan);font-size:11px;letter-spacing:.22em;text-transform:uppercase;font-weight:600;margin-bottom:10px;font-family:'JetBrains Mono',monospace}
+  h1{font-size:clamp(36px,5vw,68px);font-weight:800;line-height:1.05;letter-spacing:-.02em}
+  h1 .em{background:linear-gradient(135deg,var(--cyan),var(--amber));-webkit-background-clip:text;background-clip:text;color:transparent}
+  h2{font-size:clamp(22px,2.8vw,36px);font-weight:700;line-height:1.1;letter-spacing:-.015em;margin-bottom:6px}
+  h3{font-size:clamp(14px,1.3vw,18px);font-weight:600;color:var(--text);margin-bottom:4px}
+  p,li{font-size:clamp(13px,1.05vw,15px);line-height:1.5;color:var(--text-dim)}
+  .lead{font-size:clamp(16px,1.35vw,21px);color:var(--text);line-height:1.45}
+  .sub{font-size:clamp(13px,1.05vw,15px);color:var(--text-mute);margin-top:4px}
+  strong{color:var(--text);font-weight:600}
+  .mono{font-family:'JetBrains Mono',monospace}
+  .t-cyan{fill:#22d3ee}.t-amber{fill:#fbbf24}.t-purp{fill:#a78bfa}.t-green{fill:#34d399}.t-red{fill:#f87171}.t-dim{fill:#9fb0d0}.t-mute{fill:#6a7da3}.t-pink{fill:#f472b6}.t-mono{font-family:'JetBrains Mono',monospace}
+
+  .pill{display:inline-flex;align-items:center;gap:6px;font-size:11px;padding:3px 9px;border-radius:999px;background:rgba(34,211,238,.10);border:1px solid rgba(34,211,238,.35);color:var(--cyan);font-weight:500;font-family:'JetBrains Mono',monospace;letter-spacing:.04em}
+  .pill.amber{background:rgba(251,191,36,.10);border-color:rgba(251,191,36,.35);color:var(--amber)}
+  .pill.green{background:rgba(52,211,153,.10);border-color:rgba(52,211,153,.35);color:var(--green)}
+  .pill.purp{background:rgba(167,139,250,.10);border-color:rgba(167,139,250,.35);color:var(--purple)}
+  .pill.red{background:rgba(248,113,113,.10);border-color:rgba(248,113,113,.35);color:var(--red)}
+
+  .grid{display:grid;gap:18px}
+  .grid-2{grid-template-columns:1fr 1fr}
+  .grid-3{grid-template-columns:repeat(3,1fr)}
+  .grid-4{grid-template-columns:repeat(4,1fr)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;transition:.3s}
+  .card:hover{border-color:var(--cyan);transform:translateY(-2px)}
+  .card .num{font-family:'JetBrains Mono',monospace;color:var(--cyan);font-size:11px;letter-spacing:.1em;margin-bottom:8px}
+  .card.amber:hover{border-color:var(--amber)} .card.amber .num{color:var(--amber)}
+  .card.purp:hover{border-color:var(--purple)} .card.purp .num{color:var(--purple)}
+  .card.green:hover{border-color:var(--green)} .card.green .num{color:var(--green)}
+
+  .header{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:14px;margin-bottom:6px}
+  .header .num{font-family:'JetBrains Mono',monospace;color:var(--cyan);font-size:11px;letter-spacing:.16em}
+
+  .figure{flex:1;display:flex;align-items:center;justify-content:center;margin-top:14px}
+  .figure svg{max-width:100%;max-height:62vh;width:100%;height:auto}
+
+  pre.code{background:var(--bg-2);border:1px solid var(--line);border-radius:10px;padding:16px 18px;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.6;color:var(--text-dim);overflow:auto;max-height:60vh}
+  pre.code .c{color:var(--text-mute);font-style:italic}
+  pre.code .k{color:var(--cyan)}
+  pre.code .s{color:var(--amber)}
+  pre.code .n{color:var(--green)}
+  pre.code .p{color:var(--purple)}
+  pre.code .e{color:var(--pink)}
+
+  table.tight{width:100%;border-collapse:collapse;font-size:13px}
+  table.tight th,table.tight td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--line-soft)}
+  table.tight th{color:var(--text-mute);font-weight:600;text-transform:uppercase;letter-spacing:.06em;font-size:11px;font-family:'JetBrains Mono',monospace}
+  table.tight td{color:var(--text-dim)}
+  table.tight td.k{color:var(--text);font-family:'JetBrains Mono',monospace;font-size:12px}
+  table.tight td.v{color:var(--text);font-weight:500}
+  table.tight tr:hover td{background:rgba(34,211,238,.04)}
+
+  .navhint{position:fixed;right:24px;bottom:18px;font-size:11px;color:var(--text-dim);letter-spacing:.1em;text-transform:uppercase;display:flex;gap:8px;align-items:center;z-index:50}
+  kbd{font-family:'JetBrains Mono',monospace;font-size:11px;padding:3px 7px;border:1px solid var(--line);border-radius:5px;background:var(--bg-2);color:var(--text)}
+
+  .title-slide{justify-content:center;align-items:flex-start}
+  .title-slide .meta{display:flex;gap:24px;margin-top:32px;flex-wrap:wrap}
+  .title-slide .meta div{display:flex;flex-direction:column}
+  .title-slide .meta .mk{font-size:10px;letter-spacing:.18em;color:var(--text-dim);text-transform:uppercase}
+  .title-slide .meta .mv{font-size:15px;color:var(--text);font-weight:500;margin-top:3px}
+
+  ul.bare{list-style:none;padding:0}
+  ul.bare li{font-size:14px;color:var(--text-dim);padding:5px 0;border-bottom:1px dashed var(--line-soft)}
+  ul.bare li:last-child{border-bottom:none}
+  ul.bare li strong{color:var(--text)}
+</style>
+</head>
+<body>
+
+<div class="progress" id="progress" style="width:0%"></div>
+<div class="chrome top">
+  <div class="brand"><span class="dot"></span><span>TRIAGE_VENDOR_MATCH · ARCHITECTURE_BRIEF</span></div>
+  <div>Engineering · Session II</div>
+</div>
+<div class="chrome bot">
+  <div>2026-05-27 · sits on the Session-I LAE platform</div>
+  <div><span id="slideNum">1</span> / <span id="slideTotal">15</span></div>
+</div>
+<div class="navhint"><kbd>←</kbd><kbd>→</kbd> <span>navigate</span> <kbd>F</kbd> <span>fullscreen</span></div>
+
+<div class="deck" id="deck">
+
+  <!-- 1: Title -->
+  <section class="slide title-slide active">
+    <div class="reveal r1 kicker">// architecture brief · session II</div>
+    <h1 class="reveal r2">Claims Triage<br/>&amp; <span class="em">Vendor Match</span> Layer<br/><span style="font-size:.5em;color:var(--text-dim);font-weight:600">— the build</span></h1>
+    <p class="reveal r3 lead" style="margin-top:24px;max-width:1050px">A capability that spans Session-I Domains 2 (Triage) and 5 (Vendor Orchestration). Four services. Six events. One contract with the adjuster, one contract with each vendor. P50 &lt; 2 seconds.</p>
+    <div class="meta reveal r4">
+      <div><span class="mk">Components</span><span class="mv">Service Identifier · Vendor Pool · Composer · Attribution</span></div>
+      <div><span class="mk">Pattern</span><span class="mv">Event-driven · CQRS for read scores</span></div>
+      <div><span class="mk">Persistence</span><span class="mv">Immutable recommendations · linked lineage</span></div>
+      <div><span class="mk">Audience</span><span class="mv">Platform engineering · ML engineering</span></div>
+    </div>
+  </section>
+
+  <!-- 2: System context -->
+  <section class="slide">
+    <div class="reveal r1 header"><span class="num">02 / SYSTEM CONTEXT</span><h2>Where the layer sits in the broader stack</h2></div>
+    <div class="reveal r2 figure">
+      <svg viewBox="0 0 1400 620" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="aSC" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#22d3ee"/></marker>
+          <marker id="aSCp" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#a78bfa"/></marker>
+          <marker id="aSCg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#34d399"/></marker>
+          <linearGradient id="grLayer" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#152141"/><stop offset="1" stop-color="#0f1830"/></linearGradient>
+        </defs>
+
+        <!-- top: source systems -->
+        <g>
+          <rect x="40" y="20" width="220" height="70" rx="10" fill="#0f1830" stroke="#22325c"/>
+          <text x="150" y="46" text-anchor="middle" font-size="11" class="t-mono t-mute">SOURCE</text>
+          <text x="150" y="68" text-anchor="middle" font-size="14" class="t-dim">Claims Core (FNOL, status)</text>
+
+          <rect x="280" y="20" width="220" height="70" rx="10" fill="#0f1830" stroke="#22325c"/>
+          <text x="390" y="46" text-anchor="middle" font-size="11" class="t-mono t-mute">SOURCE</text>
+          <text x="390" y="68" text-anchor="middle" font-size="14" class="t-dim">Bill Review · PBM</text>
+
+          <rect x="520" y="20" width="220" height="70" rx="10" fill="#0f1830" stroke="#22325c"/>
+          <text x="630" y="46" text-anchor="middle" font-size="11" class="t-mono t-mute">SOURCE</text>
+          <text x="630" y="68" text-anchor="middle" font-size="14" class="t-dim">Severity · Litigation models</text>
+
+          <rect x="760" y="20" width="220" height="70" rx="10" fill="#0f1830" stroke="#22325c"/>
+          <text x="870" y="46" text-anchor="middle" font-size="11" class="t-mono t-mute">SOURCE</text>
+          <text x="870" y="68" text-anchor="middle" font-size="14" class="t-dim">Policy / Premium Audit</text>
+
+          <rect x="1000" y="20" width="220" height="70" rx="10" fill="#0f1830" stroke="#22325c"/>
+          <text x="1110" y="46" text-anchor="middle" font-size="11" class="t-mono t-mute">SOURCE</text>
+          <text x="1110" y="68" text-anchor="middle" font-size="14" class="t-dim">External: ISO · NCCI · CMS</text>
+        </g>
+
+        <!-- the layer container -->
+        <rect x="40" y="130" width="1320" height="320" rx="18" fill="url(#grLayer)" stroke="#22d3ee" stroke-opacity=".4"/>
+        <text x="64" y="158" font-size="12" class="t-mono t-cyan">// THE LAYER · four services + audit + UX</text>
+
+        <!-- the 4 components -->
+        <g>
+          <rect x="70" y="180" width="290" height="120" rx="12" fill="#1a2750" stroke="#a78bfa"/>
+          <text x="215" y="206" text-anchor="middle" font-size="11" class="t-mono t-purp">C1 / ML</text>
+          <text x="215" y="232" text-anchor="middle" font-size="16" font-weight="700" class="t-dim" style="fill:#eaf0fa">Service Identifier</text>
+          <text x="215" y="256" text-anchor="middle" font-size="12" class="t-dim">rules + classifier + timing</text>
+          <text x="215" y="278" text-anchor="middle" font-size="12" class="t-dim">→ services_needed[ ]</text>
+
+          <rect x="380" y="180" width="290" height="120" rx="12" fill="#1a2750" stroke="#22d3ee"/>
+          <text x="525" y="206" text-anchor="middle" font-size="11" class="t-mono t-cyan">C2 / STATEFUL</text>
+          <text x="525" y="232" text-anchor="middle" font-size="16" font-weight="700" style="fill:#eaf0fa">Vendor Pool + Scorecard</text>
+          <text x="525" y="256" text-anchor="middle" font-size="12" class="t-dim">8 gates + 6-factor score</text>
+          <text x="525" y="278" text-anchor="middle" font-size="12" class="t-dim">→ ranked_candidates[ ]</text>
+
+          <rect x="690" y="180" width="290" height="120" rx="12" fill="#1a2750" stroke="#fbbf24"/>
+          <text x="835" y="206" text-anchor="middle" font-size="11" class="t-mono t-amber">C3 / ORCHESTRATOR</text>
+          <text x="835" y="232" text-anchor="middle" font-size="16" font-weight="700" style="fill:#eaf0fa">Recommendation Composer</text>
+          <text x="835" y="256" text-anchor="middle" font-size="12" class="t-dim">composes + persists + emits</text>
+          <text x="835" y="278" text-anchor="middle" font-size="12" class="t-dim">→ Recommendation event</text>
+
+          <rect x="1000" y="180" width="330" height="120" rx="12" fill="#1a2750" stroke="#34d399"/>
+          <text x="1165" y="206" text-anchor="middle" font-size="11" class="t-mono t-green">C4 / BATCH + STREAM</text>
+          <text x="1165" y="232" text-anchor="middle" font-size="16" font-weight="700" style="fill:#eaf0fa">Attribution + Learning Loop</text>
+          <text x="1165" y="256" text-anchor="middle" font-size="12" class="t-dim">propensity match · scorer refresh</text>
+          <text x="1165" y="278" text-anchor="middle" font-size="12" class="t-dim">→ vendor scores · classifier retrain</text>
+        </g>
+
+        <!-- audit + UX -->
+        <rect x="70" y="320" width="610" height="50" rx="10" fill="#0f1830" stroke="#fbbf24" stroke-opacity=".4"/>
+        <text x="90" y="349" font-size="12" class="t-mono t-amber">CROSS-CUT · AUDIT LEDGER</text>
+        <text x="290" y="349" font-size="13" class="t-dim">immutable persistence · snapshot · model versions · lineage</text>
+
+        <rect x="700" y="320" width="630" height="50" rx="10" fill="#0f1830" stroke="#f472b6" stroke-opacity=".4"/>
+        <text x="720" y="349" font-size="12" class="t-mono t-pink">CROSS-CUT · ADJUSTER UX SDK</text>
+        <text x="930" y="349" font-size="13" class="t-dim">embedded in claims-core workflow · 2-click override</text>
+
+        <!-- backbone -->
+        <rect x="70" y="385" width="1260" height="48" rx="10" fill="#152141" stroke="#22d3ee" stroke-opacity=".4"/>
+        <text x="90" y="414" font-size="12" class="t-mono t-cyan">EVENT BUS · canonical claim events · vendor outcome events · learning events</text>
+
+        <!-- bottom: targets / vendors -->
+        <g>
+          <rect x="40" y="475" width="300" height="60" rx="10" fill="#0f1830" stroke="#22325c"/>
+          <text x="190" y="500" text-anchor="middle" font-size="11" class="t-mono t-mute">UPSTREAM · WRITE-BACK</text>
+          <text x="190" y="520" text-anchor="middle" font-size="13" class="t-dim">Claims Core: service engaged event</text>
+
+          <rect x="360" y="475" width="300" height="60" rx="10" fill="#0f1830" stroke="#22325c"/>
+          <text x="510" y="500" text-anchor="middle" font-size="11" class="t-mono t-mute">DOWNSTREAM</text>
+          <text x="510" y="520" text-anchor="middle" font-size="13" class="t-dim">Vendor API · intake packet</text>
+
+          <rect x="680" y="475" width="300" height="60" rx="10" fill="#0f1830" stroke="#22325c"/>
+          <text x="830" y="500" text-anchor="middle" font-size="11" class="t-mono t-mute">DOWNSTREAM</text>
+          <text x="830" y="520" text-anchor="middle" font-size="13" class="t-dim">Finance · attribution report</text>
+
+          <rect x="1000" y="475" width="340" height="60" rx="10" fill="#0f1830" stroke="#22325c"/>
+          <text x="1170" y="500" text-anchor="middle" font-size="11" class="t-mono t-mute">DOWNSTREAM</text>
+          <text x="1170" y="520" text-anchor="middle" font-size="13" class="t-dim">Compliance · audit pack · bias report</text>
+        </g>
+
+        <!-- arrows: source → bus -->
+        <g stroke="#22d3ee" stroke-width="1.8" fill="none" marker-end="url(#aSC)">
+          <line x1="150" y1="92" x2="150" y2="130"/>
+          <line x1="390" y1="92" x2="390" y2="130"/>
+          <line x1="630" y1="92" x2="630" y2="130"/>
+          <line x1="870" y1="92" x2="870" y2="130"/>
+          <line x1="1110" y1="92" x2="1110" y2="130"/>
+        </g>
+        <!-- arrows: layer → outputs -->
+        <g stroke="#a78bfa" stroke-width="1.8" fill="none" marker-end="url(#aSCp)">
+          <line x1="190" y1="450" x2="190" y2="475"/>
+          <line x1="510" y1="450" x2="510" y2="475"/>
+          <line x1="830" y1="450" x2="830" y2="475"/>
+          <line x1="1170" y1="450" x2="1170" y2="475"/>
+        </g>
+        <!-- feedback loop -->
+        <path d="M 1330 505 C 1380 505 1380 230 1330 230" stroke="#34d399" stroke-width="2" stroke-dasharray="6 6" fill="none" class="flow-anim"/>
+        <text x="1390" y="368" font-size="11" class="t-green t-mono">outcomes</text>
+        <text x="1390" y="382" font-size="11" class="t-green t-mono">→ retrain</text>
+
+        <!-- bottom band -->
+        <rect x="40" y="560" width="1320" height="38" rx="8" fill="#152141" stroke="#f87171" stroke-opacity=".35"/>
+        <text x="60" y="585" font-size="12" class="t-mono t-red">COMPLIANCE OVERLAY · jurisdiction config · bias monitor · consumer-notice service · surveillance-approval workflow</text>
+      </svg>
+    </div>
+  </section>
+
+  <!-- 3: Component map -->
+  <section class="slide">
+    <div class="reveal r1 header"><span class="num">03 / COMPONENT MAP</span><h2>Four components, each independently deployable</h2></div>
+    <div class="grid grid-2 reveal r2" style="margin-top:14px">
+      <div class="card purp">
+        <div class="num">C1 · SERVICE IDENTIFIER</div>
+        <h3>What to engage</h3>
+        <p>Hybrid decision engine. Receives a claim snapshot. Emits services_needed[ ] with type (DET/PROB/TIME/HUMAN), confidence, when, why (feature attribution).</p>
+        <ul class="bare" style="margin-top:8px">
+          <li><strong>Tech:</strong> rules engine + multi-label classifier + survival/timing model</li>
+          <li><strong>Cadence:</strong> synchronous on snapshot event</li>
+          <li><strong>State:</strong> stateless inference; model artifacts pulled from registry</li>
+          <li><strong>Output:</strong> ServiceRecommendations event</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="num">C2 · VENDOR POOL + SCORECARD</div>
+        <h3>Who can do it; who's best at it</h3>
+        <p>Vendor master, eligibility evaluator, per-claim composite scorer. Receives service + claim context. Emits ranked candidates with factor breakdown.</p>
+        <ul class="bare" style="margin-top:8px">
+          <li><strong>Tech:</strong> RDB for master, feature store for scores, vector cache for specialty-fit</li>
+          <li><strong>Cadence:</strong> sync for inference; async weekly score refresh</li>
+          <li><strong>State:</strong> heavy — vendor master, scores, capacity</li>
+          <li><strong>Output:</strong> VendorRanking event per service</li>
+        </ul>
+      </div>
+      <div class="card amber">
+        <div class="num">C3 · RECOMMENDATION COMPOSER</div>
+        <h3>One narrative for the adjuster</h3>
+        <p>Composes ServiceRecommendations × VendorRanking × audit metadata into the adjuster-facing recommendation. Persists immutably with lineage to predecessor.</p>
+        <ul class="bare" style="margin-top:8px">
+          <li><strong>Tech:</strong> stateless orchestrator + append-only ledger</li>
+          <li><strong>Cadence:</strong> synchronous</li>
+          <li><strong>State:</strong> only via the ledger</li>
+          <li><strong>Output:</strong> Recommendation event + UX payload</li>
+        </ul>
+      </div>
+      <div class="card green">
+        <div class="num">C4 · ATTRIBUTION + LEARNING LOOP</div>
+        <h3>How we know it works</h3>
+        <p>Propensity-matched outcome attribution, vendor scorer refresh, classifier retrain, drift monitor, override-pattern miner.</p>
+        <ul class="bare" style="margin-top:8px">
+          <li><strong>Tech:</strong> batch pipeline + streaming drift monitor + model registry</li>
+          <li><strong>Cadence:</strong> weekly score · quarterly retrain · monthly threshold review · monthly override review</li>
+          <li><strong>State:</strong> warehouse + model registry</li>
+          <li><strong>Output:</strong> ScoreRefresh · ModelVersion events; finance attribution report</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4: Data model -->
+  <section class="slide">
+    <div class="reveal r1 header"><span class="num">04 / CANONICAL DATA MODEL</span><h2>The four entities that anchor everything</h2></div>
+    <div class="grid grid-2 reveal r2" style="margin-top:8px;flex:1">
+<pre class="code"><span class="c">// ClaimSnapshot — the inference input</span>
+<span class="k">type</span> ClaimSnapshot = {
+  claim_id: <span class="s">UUID</span>,
+  snapshot_at: <span class="s">ISO-8601</span>,
+  source_versions: { core: <span class="s">"..."</span>, severity_model: <span class="s">"..."</span> },
+
+  <span class="c">// identity</span>
+  jurisdiction: <span class="s">"TX"</span>,
+  venue: <span class="s">"TX-DFW"</span>,
+
+  <span class="c">// injury</span>
+  date_of_injury: <span class="s">date</span>,
+  ncci_body_part: <span class="s">"shoulder"</span>,
+  ncci_nature: <span class="s">"strain"</span>,
+  catastrophic_flag: <span class="n">false</span>,
+
+  <span class="c">// claimant context</span>
+  language_primary: <span class="s">"en"</span>,
+  age_band: <span class="s">"45-54"</span>,
+  geo_zip: <span class="s">"75201"</span>,
+  modified_duty_employer: <span class="n">true</span>,
+
+  <span class="c">// state of play</span>
+  lost_time_days: <span class="n">9</span>,
+  current_reserve: <span class="n">42000</span>,
+  severity_score: <span class="n">0.68</span>,
+  litigation_propensity: <span class="n">0.31</span>,
+  engaged_services: [<span class="s">"F1"</span>, <span class="s">"B1"</span>],
+
+  <span class="c">// signals from feeds</span>
+  opioid_days: <span class="n">9</span>,
+  treatment_plan_complexity: <span class="s">"multi-provider"</span>,
+  provider_watch_flag: <span class="n">false</span>
+}
+</pre>
+<pre class="code"><span class="c">// Vendor — the eligibility + scoring root</span>
+<span class="k">type</span> Vendor = {
+  vendor_id: <span class="s">UUID</span>,
+  name: <span class="s">"Genex"</span>,
+
+  <span class="c">// what they do</span>
+  services_offered: [<span class="s">"A1"</span>, <span class="s">"A2"</span>, <span class="s">"C2"</span>],
+  jurisdictions: [<span class="s">"TX"</span>, <span class="s">"NM"</span>, <span class="s">"OK"</span>, ...],
+
+  <span class="c">// gates — all 8 evaluated at runtime</span>
+  eligibility: {
+    licensure: { status: <span class="s">"current"</span>, expires: <span class="s">"2026-12-01"</span> },
+    eo_insurance: { status: <span class="s">"current"</span>, limit: <span class="n">5000000</span> },
+    baa: { status: <span class="s">"executed"</span>, version: <span class="s">"v3.2"</span> },
+    compliance_attest: { ai_bulletin: <span class="n">true</span>, ... },
+    regulatory_actions: [],
+    soc2: { type: <span class="s">"II"</span>, report_date: <span class="s">"2025-08"</span> },
+    rate_card: { url: <span class="s">"..."</span>, effective: <span class="s">"2026-01-01"</span> },
+    capacity: { weekly: <span class="n">120</span>, current_util: <span class="n">0.72</span> }
+  },
+
+  <span class="c">// scores per service · per jurisdiction (cached)</span>
+  scores: [{
+    service_id: <span class="s">"A1"</span>, jurisdiction: <span class="s">"TX"</span>,
+    n_closed: <span class="n">412</span>,
+    outcome: <span class="n">81</span>, cost: <span class="n">76</span>, speed: <span class="n">88</span>,
+    adj_sat: <span class="n">78</span>, compliance: <span class="n">95</span>,
+    refreshed_at: <span class="s">"2026-05-20"</span>
+  }]
+}
+</pre>
+<pre class="code"><span class="c">// Recommendation — immutable artifact</span>
+<span class="k">type</span> Recommendation = {
+  rec_id: <span class="s">UUID</span>,
+  claim_id: <span class="s">UUID</span>,
+  issued_at: <span class="s">ISO-8601</span>,
+  predecessor: <span class="s">UUID?</span>,   <span class="c">// lineage</span>
+
+  snapshot_ref: <span class="s">UUID</span>,    <span class="c">// pointer to ClaimSnapshot</span>
+  model_versions: {
+    identifier: <span class="s">"si-2026.04"</span>,
+    scorer: <span class="s">"sc-2026.05"</span>,
+    timing: <span class="s">"tm-2026.03"</span>
+  },
+  weights: { outcome: <span class="n">0.40</span>, cost: <span class="n">0.25</span>, ... },
+
+  service_recommendations: [{
+    service_id: <span class="s">"A1"</span>,
+    type: <span class="s">"PROB+TIME"</span>,
+    confidence: <span class="n">0.78</span>,
+    when: <span class="s">"now"</span>,
+    why: [<span class="s">"opioid_days&gt;7"</span>, <span class="s">"multi_provider"</span>, <span class="s">"severity&gt;0.6"</span>],
+
+    candidates: [
+      { rank: <span class="n">1</span>, vendor_id: <span class="s">"..."</span>, score: <span class="n">82.6</span>,
+        factor_breakdown: { outcome: <span class="n">81</span>, cost: <span class="n">76</span>, ... },
+        estimated_cost_band: [<span class="n">1800</span>, <span class="n">3500</span>],
+        estimated_outcome_band: { rtw_days: [<span class="n">75</span>, <span class="n">95</span>] }
+      }, ...
+    ]
+  }],
+
+  governance: {
+    anti_concentration_applied: <span class="n">false</span>,
+    exploration_slot: <span class="n">false</span>,
+    surveillance_requires_approval: <span class="n">false</span>
+  }
+}
+</pre>
+<pre class="code"><span class="c">// AdjusterAction — captured per recommendation</span>
+<span class="k">type</span> AdjusterAction = {
+  rec_id: <span class="s">UUID</span>,
+  adjuster_id: <span class="s">UUID</span>,
+  acted_at: <span class="s">ISO-8601</span>,
+
+  action: <span class="s">"accept"</span> | <span class="s">"swap"</span> | <span class="s">"reject"</span> | <span class="s">"defer"</span>,
+  service_id: <span class="s">"A1"</span>,
+  chosen_vendor_id: <span class="s">UUID?</span>,
+
+  reason_code: <span class="s">"local_relationship"</span> | <span class="s">"capacity_concern"</span>
+              | <span class="s">"specialty_mismatch"</span> | <span class="s">"prior_outcome"</span>
+              | <span class="s">"claimant_preference"</span> | <span class="s">"other"</span>,
+  reason_text: <span class="s">"client requested Spanish-speaking nurse..."</span>
+}
+
+<span class="c">// Outcome — feeds the learning loop</span>
+<span class="k">type</span> Outcome = {
+  rec_id: <span class="s">UUID</span>,
+  service_id: <span class="s">"A1"</span>,
+  vendor_id: <span class="s">UUID</span>,
+  engaged_at: <span class="s">ISO-8601</span>,
+  closed_at: <span class="s">ISO-8601</span>,
+
+  metric_pack: {
+    rtw_days: <span class="n">82</span>,
+    total_cost: <span class="n">2400</span>,
+    cycle_time_days: <span class="n">11</span>,
+    adjuster_sat: <span class="n">4</span>
+  },
+  claim_final: { closed_total_cost: <span class="n">48000</span>,
+                 indemnity: <span class="n">22000</span>, medical: <span class="n">26000</span>,
+                 alae: <span class="n">0</span> }
+}
+</pre>
+    </div>
+  </section>
+
+  <!-- 5: Service Identifier -->
+  <section class="slide">
+    <div class="reveal r1 header"><span class="num">05 / SERVICE IDENTIFIER</span><h2>Hybrid: rules + classifier + timing</h2></div>
+    <div class="reveal r2 figure">
+      <svg viewBox="0 0 1400 460" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="aSI" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#a78bfa"/></marker>
+        </defs>
+        <rect x="40" y="40" width="260" height="80" rx="10" fill="#0f1830" stroke="#22325c"/>
+        <text x="170" y="68" text-anchor="middle" font-size="12" class="t-mono t-mute">INPUT</text>
+        <text x="170" y="92" text-anchor="middle" font-size="14" class="t-dim">ClaimSnapshot</text>
+
+        <!-- splitter -->
+        <rect x="360" y="40" width="200" height="380" rx="12" fill="#152141" stroke="#a78bfa"/>
+        <text x="460" y="68" text-anchor="middle" font-size="11" class="t-mono t-purp">DISPATCHER</text>
+        <text x="460" y="92" text-anchor="middle" font-size="14" class="t-dim">per-service routing</text>
+        <text x="460" y="120" text-anchor="middle" font-size="11" class="t-mute">catalog declares type:</text>
+        <text x="460" y="142" text-anchor="middle" font-size="11" class="t-cyan">DET / PROB / TIME / HUMAN</text>
+
+        <!-- three lanes -->
+        <g>
+          <rect x="620" y="40" width="320" height="110" rx="10" fill="#1a2750" stroke="#22d3ee"/>
+          <text x="780" y="66" text-anchor="middle" font-size="11" class="t-mono t-cyan">LANE A · DETERMINISTIC RULES</text>
+          <text x="780" y="92" text-anchor="middle" font-size="13" class="t-dim">F3 EDI · C5 interpreter · E3 MSA · F1 records</text>
+          <text x="780" y="112" text-anchor="middle" font-size="13" class="t-dim">B1 MBR · A4 UR (per request)</text>
+          <text x="780" y="135" text-anchor="middle" font-size="11" class="t-mute">policy not prediction · always fires when condition holds</text>
+
+          <rect x="620" y="170" width="320" height="110" rx="10" fill="#1a2750" stroke="#a78bfa"/>
+          <text x="780" y="196" text-anchor="middle" font-size="11" class="t-mono t-purp">LANE B · MULTI-LABEL CLASSIFIER</text>
+          <text x="780" y="222" text-anchor="middle" font-size="13" class="t-dim">A1/A2 NCM · A6 IME · D1 SIU · D6 counsel</text>
+          <text x="780" y="242" text-anchor="middle" font-size="13" class="t-dim">B7 specialty · C1 voc rehab · E6 subrogation</text>
+          <text x="780" y="265" text-anchor="middle" font-size="11" class="t-mute">per-service threshold · SHAP feature attribution</text>
+
+          <rect x="620" y="300" width="320" height="110" rx="10" fill="#1a2750" stroke="#fbbf24"/>
+          <text x="780" y="326" text-anchor="middle" font-size="11" class="t-mono t-amber">LANE C · TIMING MODEL</text>
+          <text x="780" y="352" text-anchor="middle" font-size="13" class="t-dim">A1/A2 NCM timing · D6 counsel timing</text>
+          <text x="780" y="372" text-anchor="middle" font-size="13" class="t-dim">D2 surveillance timing · E1 mediation timing</text>
+          <text x="780" y="395" text-anchor="middle" font-size="11" class="t-mute">survival-style · emits "when" with confidence</text>
+        </g>
+
+        <!-- merge to output -->
+        <rect x="990" y="170" width="240" height="110" rx="12" fill="#152141" stroke="#34d399"/>
+        <text x="1110" y="196" text-anchor="middle" font-size="11" class="t-mono t-green">MERGE</text>
+        <text x="1110" y="222" text-anchor="middle" font-size="14" class="t-dim">services_needed[ ]</text>
+        <text x="1110" y="244" text-anchor="middle" font-size="12" class="t-mute">deduped · prioritized</text>
+        <text x="1110" y="262" text-anchor="middle" font-size="12" class="t-mute">with dependencies resolved</text>
+
+        <rect x="1270" y="170" width="100" height="110" rx="10" fill="#0f1830" stroke="#22325c"/>
+        <text x="1320" y="220" text-anchor="middle" font-size="11" class="t-mono t-mute">OUT</text>
+        <text x="1320" y="240" text-anchor="middle" font-size="13" class="t-dim">→ C2</text>
+
+        <!-- arrows -->
+        <g stroke="#a78bfa" stroke-width="2" fill="none" marker-end="url(#aSI)">
+          <line x1="300" y1="80" x2="360" y2="80"/>
+          <line x1="560" y1="95" x2="620" y2="95"/>
+          <line x1="560" y1="225" x2="620" y2="225"/>
+          <line x1="560" y1="355" x2="620" y2="355"/>
+          <path d="M 940 95 C 970 95 970 225 990 225"/>
+          <line x1="940" y1="225" x2="990" y2="225"/>
+          <path d="M 940 355 C 970 355 970 225 990 225"/>
+          <line x1="1230" y1="225" x2="1270" y2="225"/>
+        </g>
+
+        <!-- footnote -->
+        <rect x="990" y="40" width="380" height="100" rx="10" fill="#0f1830" stroke="#22325c" stroke-dasharray="4 4"/>
+        <text x="1010" y="68" font-size="11" class="t-mono t-mute">// CATALOG-DRIVEN</text>
+        <text x="1010" y="90" font-size="13" class="t-dim">Each service in SERVICE_CATALOG.md</text>
+        <text x="1010" y="108" font-size="13" class="t-dim">declares its type — the dispatcher routes</text>
+        <text x="1010" y="126" font-size="13" class="t-dim">accordingly. Adding a service = catalog change.</text>
+      </svg>
+    </div>
+    <p class="reveal r3 sub">Type is declared in the service catalog. <span class="pill red">D2 surveillance routes to a HUMAN-approval workflow regardless of classifier confidence.</span> <span class="pill amber">A3 catastrophic auto-presents within 24h of catastrophic flag.</span></p>
+  </section>
+
+  <!-- 6: Vendor Pool & Eligibility -->
+  <section class="slide">
+    <div class="reveal r1 header"><span class="num">06 / VENDOR POOL · ELIGIBILITY</span><h2>8 gates as a single evaluator. Binary. Refreshed continuously.</h2></div>
+    <div class="grid grid-2 reveal r2" style="margin-top:14px;flex:1">
+      <div>
+        <table class="tight">
+          <thead><tr><th>#</th><th>Gate</th><th>Refresh</th></tr></thead>
+          <tbody>
+            <tr><td class="k">G1</td><td class="v">State licensure / credentials current</td><td>monthly auto-check + on-expire</td></tr>
+            <tr><td class="k">G2</td><td class="v">E&amp;O insurance at carrier limits</td><td>annual + on-change</td></tr>
+            <tr><td class="k">G3</td><td class="v">HIPAA BAA executed</td><td>per contract renewal</td></tr>
+            <tr><td class="k">G4</td><td class="v">Compliance attestations on file</td><td>annual</td></tr>
+            <tr><td class="k">G5</td><td class="v">No active regulatory action</td><td>quarterly</td></tr>
+            <tr><td class="k">G6</td><td class="v">SOC 2 Type II or equivalent</td><td>annual</td></tr>
+            <tr><td class="k">G7</td><td class="v">Machine-readable rate card on file</td><td>on contract / amendment</td></tr>
+            <tr><td class="k">G8</td><td class="v">Capacity disclosed</td><td>weekly + on-utilization-change</td></tr>
+          </tbody>
+        </table>
+        <p style="margin-top:14px;color:var(--text-dim);font-size:13px"><strong>Per-claim filter</strong> additionally enforced at runtime: jurisdiction match · conflict-of-interest exclusion · claim-specific exclusion list · capacity below 85%.</p>
+      </div>
+      <div>
+<pre class="code"><span class="c">// EligibilityEvaluator — pure function</span>
+<span class="k">function</span> <span class="p">isEligible</span>(v: Vendor, s: ServiceId, c: Claim): Verdict {
+
+  <span class="c">// Gate 1-8: vendor-level</span>
+  <span class="k">if</span> (v.eligibility.licensure.status !== <span class="s">"current"</span>) <span class="k">return</span> { ok: <span class="n">false</span>, fail: <span class="s">"G1"</span> }
+  <span class="k">if</span> (!hasMinLimit(v.eligibility.eo_insurance)) <span class="k">return</span> { ok: <span class="n">false</span>, fail: <span class="s">"G2"</span> }
+  <span class="k">if</span> (v.eligibility.baa.status !== <span class="s">"executed"</span>) <span class="k">return</span> { ok: <span class="n">false</span>, fail: <span class="s">"G3"</span> }
+  <span class="k">if</span> (!hasAttestation(v, s)) <span class="k">return</span> { ok: <span class="n">false</span>, fail: <span class="s">"G4"</span> }
+  <span class="k">if</span> (v.eligibility.regulatory_actions.length &gt; <span class="n">0</span>) <span class="k">return</span> { ok: <span class="n">false</span>, fail: <span class="s">"G5"</span> }
+  <span class="k">if</span> (v.eligibility.soc2.type !== <span class="s">"II"</span>) <span class="k">return</span> { ok: <span class="n">false</span>, fail: <span class="s">"G6"</span> }
+  <span class="k">if</span> (!hasRateCard(v, s, c.jurisdiction)) <span class="k">return</span> { ok: <span class="n">false</span>, fail: <span class="s">"G7"</span> }
+  <span class="k">if</span> (v.eligibility.capacity.current_util &gt; <span class="n">0.85</span>) <span class="k">return</span> { ok: <span class="n">false</span>, fail: <span class="s">"G8"</span> }
+
+  <span class="c">// Per-claim filter</span>
+  <span class="k">if</span> (!v.jurisdictions.includes(c.jurisdiction)) <span class="k">return</span> { ok: <span class="n">false</span>, fail: <span class="s">"jurisdiction"</span> }
+  <span class="k">if</span> (hasConflictOfInterest(v, c)) <span class="k">return</span> { ok: <span class="n">false</span>, fail: <span class="s">"COI"</span> }
+  <span class="k">if</span> (c.exclusion_list.includes(v.vendor_id)) <span class="k">return</span> { ok: <span class="n">false</span>, fail: <span class="s">"excluded"</span> }
+  <span class="k">if</span> (!v.services_offered.includes(s)) <span class="k">return</span> { ok: <span class="n">false</span>, fail: <span class="s">"service"</span> }
+
+  <span class="k">return</span> { ok: <span class="n">true</span> }
+}
+</pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7: Scorer -->
+  <section class="slide">
+    <div class="reveal r1 header"><span class="num">07 / VENDOR SCORER</span><h2>Per-claim composite. Causal correction. Time decay. Governance overlay.</h2></div>
+    <div class="grid grid-2 reveal r2" style="margin-top:8px;flex:1">
+      <div>
+<pre class="code"><span class="c">// CompositeScore(vendor, claim, service)</span>
+
+<span class="k">function</span> <span class="p">scoreFor</span>(v: Vendor, c: Claim, s: ServiceId): Score {
+
+  <span class="c">// 1. base factor pulls from the vendor's cached score</span>
+  <span class="c">//    per (service, jurisdiction). Recomputed weekly.</span>
+  <span class="k">const</span> base = v.scores.find(x =&gt; x.service_id === s
+                              &amp;&amp; x.jurisdiction === c.jurisdiction)
+
+  <span class="k">if</span> (!base || base.n_closed &lt; <span class="n">30</span>) {
+    <span class="k">return</span> { rank: <span class="s">"provisional"</span>, eligibleFor: <span class="s">"exploration"</span> }
+  }
+
+  <span class="c">// 2. specialty fit is computed per-CLAIM, not stored</span>
+  <span class="k">const</span> specialty = <span class="p">computeSpecialtyFit</span>(v, c, s)
+  <span class="c">//   - body part match</span>
+  <span class="c">//   - language match</span>
+  <span class="c">//   - geographic distance / coverage</span>
+  <span class="c">//   - venue history (defense counsel)</span>
+
+  <span class="c">// 3. weights default; per-family overrides allowed</span>
+  <span class="k">const</span> w = <span class="p">weightsFor</span>(s.family)
+
+  <span class="k">return</span> { composite:
+    w.outcome * base.outcome      <span class="c">// propensity-adjusted</span>
+  + w.cost    * base.cost
+  + w.speed   * base.speed
+  + w.specfit * specialty
+  + w.adjsat  * base.adj_sat
+  + w.compl   * base.compliance,
+
+    breakdown: { outcome, cost, speed, specialty, adjsat, compliance },
+    n_closed: base.n_closed,
+    refreshed_at: base.refreshed_at,
+    estimated_cost_band: <span class="p">estimateCost</span>(v, c, s),
+    estimated_outcome_band: <span class="p">estimateOutcome</span>(v, c, s)
+  }
+}
+</pre>
+      </div>
+      <div>
+<pre class="code"><span class="c">// Outcome correction (offline, weekly refresh)</span>
+
+<span class="c">// Top vendors get easier claims. Without correction</span>
+<span class="c">// the score conflates skill with assignment.</span>
+
+<span class="k">function</span> <span class="p">refreshOutcomeScores</span>(window: TimeRange) {
+
+  <span class="k">const</span> closed = <span class="p">closuresIn</span>(window)
+
+  <span class="c">// covariates we control for</span>
+  <span class="k">const</span> X = [<span class="s">"severity_at_engagement"</span>, <span class="s">"litigation_propensity"</span>,
+             <span class="s">"ncci_body_part"</span>, <span class="s">"jurisdiction"</span>, <span class="s">"venue"</span>,
+             <span class="s">"age_band"</span>, <span class="s">"days_from_doi_at_engage"</span>]
+
+  <span class="c">// propensity model: P(vendor_v | X)</span>
+  <span class="k">const</span> propensity = <span class="p">fitPropensityModel</span>(closed, X)
+
+  <span class="c">// inverse-probability weighting → unbiased outcome estimate</span>
+  <span class="k">for</span> (<span class="k">const</span> v <span class="k">of</span> vendors) {
+    <span class="k">for</span> (<span class="k">const</span> svc <span class="k">of</span> v.services_offered) {
+      <span class="k">for</span> (<span class="k">const</span> j <span class="k">of</span> v.jurisdictions) {
+        <span class="k">const</span> w = <span class="p">ipw</span>(closed, v, svc, j, propensity)
+        <span class="k">const</span> raw  = <span class="p">avgOutcome</span>(closed, v, svc, j)
+        <span class="k">const</span> adj  = <span class="p">weightedAvg</span>(closed, w, svc, j)
+
+        <span class="c">// time decay: last 6mo 60% · 7-18mo 40% · &gt;18mo drop</span>
+        <span class="k">const</span> decayed = <span class="p">applyDecay</span>(adj, [<span class="n">0.6</span>, <span class="n">0.4</span>, <span class="n">0</span>])
+
+        <span class="p">writeScore</span>(v, svc, j, decayed)
+      }
+    }
+  }
+}
+
+<span class="c">// Governance layer (applied at routing, not scoring)</span>
+<span class="c">//   anti-concentration cap · 50% rolling 90d</span>
+<span class="c">//   exploration quota · 5% to ranks 4-5</span>
+<span class="c">//   surveillance · advisory only · human approval</span>
+</pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8: Recommendation Composer -->
+  <section class="slide">
+    <div class="reveal r1 header"><span class="num">08 / RECOMMENDATION COMPOSER</span><h2>Event flow · immutable persistence · lineage</h2></div>
+    <div class="reveal r2 figure">
+      <svg viewBox="0 0 1400 420" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="aRC" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#fbbf24"/></marker>
+          <marker id="aRCg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#34d399"/></marker>
+        </defs>
+        <!-- swim lane labels -->
+        <g font-size="11" class="t-mono t-mute" text-anchor="end">
+          <text x="120" y="60">EVENT BUS</text>
+          <text x="120" y="140">COMPOSER</text>
+          <text x="120" y="220">LEDGER</text>
+          <text x="120" y="300">CONSUMERS</text>
+        </g>
+        <g stroke="#1d2a4d" stroke-width="1">
+          <line x1="140" y1="30" x2="1380" y2="30"/>
+          <line x1="140" y1="100" x2="1380" y2="100"/>
+          <line x1="140" y1="180" x2="1380" y2="180"/>
+          <line x1="140" y1="260" x2="1380" y2="260"/>
+          <line x1="140" y1="340" x2="1380" y2="340"/>
+        </g>
+
+        <!-- t1 events arrive -->
+        <g><rect x="160" y="40" width="200" height="50" rx="8" fill="#152141" stroke="#22d3ee"/>
+        <text x="260" y="62" text-anchor="middle" font-size="11" class="t-mono t-cyan">EVENT</text>
+        <text x="260" y="80" text-anchor="middle" font-size="13" class="t-dim">ClaimEvent (e.g. severity scored)</text></g>
+
+        <!-- t2 snapshot -->
+        <g><rect x="380" y="120" width="200" height="50" rx="8" fill="#152141" stroke="#fbbf24"/>
+        <text x="480" y="142" text-anchor="middle" font-size="11" class="t-mono t-amber">STEP</text>
+        <text x="480" y="160" text-anchor="middle" font-size="13" class="t-dim">snapshot claim · pin model versions</text></g>
+
+        <!-- t3 identify -->
+        <g><rect x="600" y="120" width="200" height="50" rx="8" fill="#152141" stroke="#a78bfa"/>
+        <text x="700" y="142" text-anchor="middle" font-size="11" class="t-mono t-purp">C1 CALL</text>
+        <text x="700" y="160" text-anchor="middle" font-size="13" class="t-dim">ServiceRecommendations</text></g>
+
+        <!-- t4 rank -->
+        <g><rect x="820" y="120" width="200" height="50" rx="8" fill="#152141" stroke="#22d3ee"/>
+        <text x="920" y="142" text-anchor="middle" font-size="11" class="t-mono t-cyan">C2 CALL</text>
+        <text x="920" y="160" text-anchor="middle" font-size="13" class="t-dim">VendorRanking per service</text></g>
+
+        <!-- t5 governance -->
+        <g><rect x="1040" y="120" width="200" height="50" rx="8" fill="#152141" stroke="#f87171"/>
+        <text x="1140" y="142" text-anchor="middle" font-size="11" class="t-mono t-red">GOVERN</text>
+        <text x="1140" y="160" text-anchor="middle" font-size="13" class="t-dim">anti-conc · exploration · D2 hold</text></g>
+
+        <!-- persist -->
+        <g><rect x="600" y="200" width="440" height="50" rx="8" fill="#152141" stroke="#fbbf24"/>
+        <text x="820" y="222" text-anchor="middle" font-size="11" class="t-mono t-amber">PERSIST · APPEND-ONLY</text>
+        <text x="820" y="240" text-anchor="middle" font-size="13" class="t-dim">Recommendation(rec_id, predecessor=prev) · immutable</text></g>
+
+        <!-- emit -->
+        <g><rect x="1060" y="200" width="200" height="50" rx="8" fill="#152141" stroke="#34d399"/>
+        <text x="1160" y="222" text-anchor="middle" font-size="11" class="t-mono t-green">EMIT</text>
+        <text x="1160" y="240" text-anchor="middle" font-size="13" class="t-dim">RecommendationIssued event</text></g>
+
+        <!-- consumers -->
+        <g><rect x="160" y="280" width="200" height="50" rx="8" fill="#152141" stroke="#f472b6"/>
+        <text x="260" y="302" text-anchor="middle" font-size="11" class="t-mono t-pink">UX SDK</text>
+        <text x="260" y="320" text-anchor="middle" font-size="13" class="t-dim">renders inside claim screen</text></g>
+
+        <g><rect x="380" y="280" width="200" height="50" rx="8" fill="#152141" stroke="#22d3ee"/>
+        <text x="480" y="302" text-anchor="middle" font-size="11" class="t-mono t-cyan">CAPACITY</text>
+        <text x="480" y="320" text-anchor="middle" font-size="13" class="t-dim">vendor utilization tick</text></g>
+
+        <g><rect x="600" y="280" width="200" height="50" rx="8" fill="#152141" stroke="#fbbf24"/>
+        <text x="700" y="302" text-anchor="middle" font-size="11" class="t-mono t-amber">AUDIT</text>
+        <text x="700" y="320" text-anchor="middle" font-size="13" class="t-dim">compliance index updated</text></g>
+
+        <g><rect x="820" y="280" width="200" height="50" rx="8" fill="#152141" stroke="#34d399"/>
+        <text x="920" y="302" text-anchor="middle" font-size="11" class="t-mono t-green">METRICS</text>
+        <text x="920" y="320" text-anchor="middle" font-size="13" class="t-dim">latency / accept-rate</text></g>
+
+        <g><rect x="1040" y="280" width="200" height="50" rx="8" fill="#152141" stroke="#a78bfa"/>
+        <text x="1140" y="302" text-anchor="middle" font-size="11" class="t-mono t-purp">WAREHOUSE</text>
+        <text x="1140" y="320" text-anchor="middle" font-size="13" class="t-dim">feeds C4 attribution</text></g>
+
+        <!-- arrows -->
+        <g stroke="#fbbf24" stroke-width="2" fill="none" marker-end="url(#aRC)">
+          <path d="M 260 90 C 260 110 380 120 480 120"/>
+          <line x1="580" y1="145" x2="600" y2="145"/>
+          <line x1="800" y1="145" x2="820" y2="145"/>
+          <line x1="1020" y1="145" x2="1040" y2="145"/>
+          <path d="M 1140 170 C 1140 190 820 200 820 200"/>
+          <line x1="1040" y1="225" x2="1060" y2="225"/>
+        </g>
+        <g stroke="#34d399" stroke-width="2" fill="none" marker-end="url(#aRCg)">
+          <path d="M 1160 250 C 1160 270 260 270 260 280"/>
+          <path d="M 1160 250 C 1160 270 480 270 480 280"/>
+          <path d="M 1160 250 C 1160 270 700 270 700 280"/>
+          <path d="M 1160 250 C 1160 270 920 270 920 280"/>
+          <line x1="1140" y1="250" x2="1140" y2="280"/>
+        </g>
+
+        <!-- annotation -->
+        <text x="1280" y="55" font-size="11" class="t-mono t-mute" text-anchor="end">events trigger; nothing polls</text>
+        <text x="1280" y="385" font-size="11" class="t-mono t-mute" text-anchor="end">single emit fans out via bus</text>
+      </svg>
+    </div>
+    <p class="reveal r3 sub"><strong class="warn">Immutability rule:</strong> a Recommendation is never modified. When a successor event invalidates a recommendation, a new Recommendation is issued with <code class="mono">predecessor=prev_rec_id</code> — the lineage chain is the audit history.</p>
+  </section>
+
+  <!-- 9: Adjuster UX contract -->
+  <section class="slide">
+    <div class="reveal r1 header"><span class="num">09 / ADJUSTER UX CONTRACT</span><h2>Embedded payload · two-click override · reason vocabulary</h2></div>
+    <div class="grid grid-2 reveal r2" style="margin-top:8px;flex:1">
+      <div>
+<pre class="code"><span class="c">// What the UX SDK renders into the claim screen</span>
+<span class="k">type</span> UxPayload = {
+  rec_id: <span class="s">UUID</span>,
+  context: { claim_id, snapshot_summary },
+
+  blocks: [{
+    service_id: <span class="s">"A1"</span>,
+    service_name: <span class="s">"Telephonic Nurse Case Management"</span>,
+    why: [<span class="s">"opioid_days&gt;7"</span>, <span class="s">"multi_provider"</span>, <span class="s">"severity 0.68"</span>],
+    when: <span class="s">"now"</span>,
+
+    candidates: [
+      { rank: <span class="n">1</span>, vendor_name: <span class="s">"Genex"</span>,
+        score: <span class="n">82.6</span>,
+        bars: { outcome: <span class="n">81</span>, cost: <span class="n">76</span>, speed: <span class="n">88</span>,
+                specialty: <span class="n">92</span>, adjsat: <span class="n">78</span>, compl: <span class="n">95</span> },
+        cost_band: <span class="s">"$1.8K–$3.5K"</span>,
+        outcome_band: <span class="s">"RTW 75–95d"</span>,
+        n_comparable: <span class="n">412</span> }, ...
+    ],
+
+    actions: [
+      { kind: <span class="s">"accept_rank_1"</span>, hotkey: <span class="s">"Enter"</span> },
+      { kind: <span class="s">"swap"</span>, hotkey: <span class="s">"S"</span> },
+      { kind: <span class="s">"reject"</span>, hotkey: <span class="s">"R"</span> }
+    ]
+  }]
+}
+
+<span class="c">// What the UX SDK returns on action</span>
+<span class="k">type</span> UxResponse = {
+  rec_id, service_id, action, chosen_vendor_id?,
+  reason_code, reason_text?
+}
+</pre>
+      </div>
+      <div>
+<pre class="code"><span class="c">// Reason vocabulary (controlled)</span>
+<span class="k">enum</span> ReasonCode {
+  <span class="c">// claim-specific</span>
+  CLAIMANT_PREFERENCE,
+  LOCAL_RELATIONSHIP,
+  PRIOR_VENDOR_ON_FILE,
+  EMPLOYER_PREFERENCE,
+
+  <span class="c">// vendor concerns</span>
+  CAPACITY_CONCERN,
+  PRIOR_BAD_EXPERIENCE,
+  SPECIALTY_MISMATCH,
+  GEOGRAPHIC_CONCERN,
+
+  <span class="c">// strategy</span>
+  CONSOLIDATION_STRATEGY,
+  COMPLEXITY_OVERRIDE,
+  TIMING_OVERRIDE,
+
+  <span class="c">// system</span>
+  RECOMMENDATION_STALE,
+  DATA_QUALITY_DOUBT,
+
+  OTHER  <span class="c">// requires reason_text</span>
+}
+</pre>
+<pre class="code" style="margin-top:14px"><span class="c">// What gets persisted on accept</span>
+{
+  rec_id: <span class="s">"..."</span>,
+  adjuster_id: <span class="s">"..."</span>,
+  acted_at: <span class="s">"2026-05-27T14:22:03Z"</span>,
+  action: <span class="s">"accept"</span>,
+  service_id: <span class="s">"A1"</span>,
+  chosen_vendor_id: <span class="s">"genex-uuid"</span>,
+  ux_latency_ms: <span class="n">340</span>,    <span class="c">// time-to-decide</span>
+  ttf_decision_s: <span class="n">12</span>      <span class="c">// time-on-task</span>
+}
+</pre>
+      </div>
+    </div>
+    <p class="reveal r3 sub" style="margin-top:10px"><strong class="amber">Cultural rule (D-T11):</strong> for the first 12 months, individual override rate is not used in performance reviews. Aggregated patterns feed the learning loop only.</p>
+  </section>
+
+  <!-- 10: Vendor API contract -->
+  <section class="slide">
+    <div class="reveal r1 header"><span class="num">10 / VENDOR API CONTRACT</span><h2>What we send to vendors. What we expect back.</h2></div>
+    <div class="grid grid-2 reveal r2" style="margin-top:8px;flex:1">
+      <div>
+<pre class="code"><span class="c">// POST /v1/intake  (carrier → vendor)</span>
+{
+  engagement_id: <span class="s">UUID</span>,    <span class="c">// our id</span>
+  rec_id: <span class="s">UUID</span>,
+  service_id: <span class="s">"A1"</span>,
+  jurisdiction: <span class="s">"TX"</span>,
+
+  claim: {
+    claim_number: <span class="s">"WC-2026-04-1187"</span>,
+    date_of_injury: <span class="s">"2026-04-12"</span>,
+    body_part: <span class="s">"shoulder"</span>,
+    severity_score: <span class="n">0.68</span>,
+    language_primary: <span class="s">"en"</span>,
+    geo_zip: <span class="s">"75201"</span>
+  },
+
+  claimant: { redacted_id, contact_pref },
+  employer: { redacted_id, modified_duty: <span class="n">true</span> },
+  treating_provider: { npi, name },
+
+  sla: { first_action_by: <span class="s">"2026-05-28T18:00Z"</span>,
+         expected_close_by: <span class="s">"2026-08-15"</span> },
+
+  rate_card_ref: <span class="s">"v3.2-TX-2026"</span>,
+
+  callback_url: <span class="s">"https://carrier/api/vendor/v1/outcome"</span>
+}
+
+<span class="c">// 202 Accepted — vendor confirms intake</span>
+{ engagement_id, vendor_ref, accepted_at, first_action_at }
+</pre>
+      </div>
+      <div>
+<pre class="code"><span class="c">// POST /v1/outcome  (vendor → carrier)</span>
+{
+  engagement_id: <span class="s">UUID</span>,
+  event_type: <span class="s">"action"</span> | <span class="s">"milestone"</span> | <span class="s">"close"</span> | <span class="s">"invoice"</span>,
+  occurred_at: <span class="s">ISO-8601</span>,
+
+  payload: {
+    <span class="c">// for action</span>
+    action_type: <span class="s">"first_contact_claimant"</span>,
+    notes_redacted: <span class="s">"..."</span>,
+
+    <span class="c">// for milestone</span>
+    milestone: <span class="s">"rtw_modified_duty"</span> | <span class="s">"mmi_declared"</span> | ...,
+
+    <span class="c">// for close</span>
+    closed_at: <span class="s">ISO-8601</span>,
+    outcome_metrics: { rtw_days: <span class="n">82</span>,
+                       services_rendered: [<span class="s">"calls"</span>:<span class="n">14</span>] },
+
+    <span class="c">// for invoice</span>
+    invoice: { lines: [...], total: <span class="n">2400</span>,
+               rate_card_ref: <span class="s">"v3.2-TX-2026"</span> }
+  }
+}
+</pre>
+<pre class="code" style="margin-top:14px"><span class="c">// Degraded path (R-INTG-03)</span>
+<span class="c">// Vendors not on the API can submit via secure portal:</span>
+<span class="c">//   - PDF intake packet auto-generated</span>
+<span class="c">//   - Outcome web form for required fields</span>
+<span class="c">//   - SLA: degraded vendors capped at X% of routed volume</span>
+</pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- 11: Event catalog -->
+  <section class="slide">
+    <div class="reveal r1 header"><span class="num">11 / EVENT CATALOG</span><h2>What flows in. What flows out. The contract surface.</h2></div>
+    <div class="grid grid-2 reveal r2" style="margin-top:14px">
+      <div class="card">
+        <div class="num">INBOUND · from claims core + ML</div>
+        <h3>The layer consumes</h3>
+        <table class="tight" style="margin-top:8px">
+          <thead><tr><th>Event</th><th>Source</th></tr></thead>
+          <tbody>
+            <tr><td class="k">FNOLFiled</td><td>Claims Core</td></tr>
+            <tr><td class="k">SeverityScored</td><td>Severity Model</td></tr>
+            <tr><td class="k">LitigationPropensityScored</td><td>Litigation Model</td></tr>
+            <tr><td class="k">TreatmentPlanSubmitted</td><td>Claims Core</td></tr>
+            <tr><td class="k">PrescriptionFilled</td><td>PBM</td></tr>
+            <tr><td class="k">ReserveChanged</td><td>Claims Core / Reserving</td></tr>
+            <tr><td class="k">ClaimStatusChanged</td><td>Claims Core</td></tr>
+            <tr><td class="k">CatastrophicFlagSet</td><td>Claims Core / Intake</td></tr>
+            <tr><td class="k">AttorneyRepresentationConfirmed</td><td>Claims Core / Legal</td></tr>
+            <tr><td class="k">VendorEligibilityChanged</td><td>Vendor Mgmt</td></tr>
+            <tr><td class="k">RateCardUpdated</td><td>Procurement</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card amber">
+        <div class="num">OUTBOUND · from the layer</div>
+        <h3>The layer emits</h3>
+        <table class="tight" style="margin-top:8px">
+          <thead><tr><th>Event</th><th>Consumer</th></tr></thead>
+          <tbody>
+            <tr><td class="k">RecommendationIssued</td><td>UX · Audit · Warehouse</td></tr>
+            <tr><td class="k">AdjusterAccepted</td><td>Vendor Engagement</td></tr>
+            <tr><td class="k">AdjusterSwapped</td><td>Vendor Engagement · Learning</td></tr>
+            <tr><td class="k">AdjusterRejected</td><td>Learning</td></tr>
+            <tr><td class="k">VendorEngaged</td><td>Vendor API · Claims Core · Capacity</td></tr>
+            <tr><td class="k">SurveillanceApprovalRequested</td><td>Compliance Workflow</td></tr>
+            <tr><td class="k">VendorOutcomeReceived</td><td>Warehouse · Score Refresh</td></tr>
+            <tr><td class="k">VendorScoreRefreshed</td><td>Vendor Pool · Notification</td></tr>
+            <tr><td class="k">ClassifierVersionPromoted</td><td>Model Registry · Audit</td></tr>
+            <tr><td class="k">AttributionReportPublished</td><td>Finance</td></tr>
+            <tr><td class="k">BiasReportPublished</td><td>Compliance</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- 12: NFRs -->
+  <section class="slide">
+    <div class="reveal r1 header"><span class="num">12 / NON-FUNCTIONAL REQUIREMENTS</span><h2>Latency · idempotency · audit · jurisdiction · adoption</h2></div>
+    <div class="grid grid-3 reveal r2" style="margin-top:14px">
+      <div class="card">
+        <div class="num">NFR-01 · LATENCY</div>
+        <h3>P50 &lt; 2s · P95 &lt; 5s</h3>
+        <p>From inbound event to persisted Recommendation. Snapshot + identify + rank + governance + persist + emit.</p>
+      </div>
+      <div class="card purp">
+        <div class="num">NFR-02 · IDEMPOTENCY</div>
+        <h3>Replay-safe</h3>
+        <p>Same event + same snapshot + same model versions → identical Recommendation. Persistence keyed on deterministic hash to deduplicate.</p>
+      </div>
+      <div class="card amber">
+        <div class="num">NFR-03 · IMMUTABILITY</div>
+        <h3>Append-only ledger</h3>
+        <p>Recommendations never mutate. Corrections create successor records linked by predecessor.</p>
+      </div>
+      <div class="card">
+        <div class="num">NFR-04 · AUDIT</div>
+        <h3>Reproducible at point-in-time</h3>
+        <p>Snapshot, model versions, weights, scores, candidates, action, outcome — all linked, all queryable, all retained per state schedule.</p>
+      </div>
+      <div class="card green">
+        <div class="num">NFR-05 · PHI / HIPAA</div>
+        <h3>Encryption + minimum necessary</h3>
+        <p>At-rest AES-256, in-transit TLS 1.3. Vendor packets redact identifiers; claim_number is opaque to vendor.</p>
+      </div>
+      <div class="card purp">
+        <div class="num">NFR-06 · JURISDICTION</div>
+        <h3>Config, not code</h3>
+        <p>Eligibility rules, scoring weights, consumer-notice copy, surveillance approval routing — all data-driven per state.</p>
+      </div>
+      <div class="card amber">
+        <div class="num">NFR-07 · OBSERVABILITY</div>
+        <h3>Per-event tracing</h3>
+        <p>Trace ID propagated from inbound event through C1 → C2 → C3 emit → vendor API call. Latency per component.</p>
+      </div>
+      <div class="card">
+        <div class="num">NFR-08 · DEPLOY</div>
+        <h3>Independently deployable</h3>
+        <p>C1/C2/C3/C4 each deployable behind feature flags. Shadow mode for new classifier versions.</p>
+      </div>
+      <div class="card green">
+        <div class="num">NFR-09 · ADOPTION</div>
+        <h3>≥70% acceptance by end of Phase 2</h3>
+        <p>Measured by AdjusterAccepted ÷ RecommendationIssued. Acceptance ratio is a product KPI, not an individual adjuster KPI.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 13: Learning loop -->
+  <section class="slide">
+    <div class="reveal r1 header"><span class="num">13 / LEARNING LOOP</span><h2>Four cadences. Each closes a different feedback gap.</h2></div>
+    <div class="reveal r2 figure">
+      <svg viewBox="0 0 1400 360" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="aLL" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#34d399"/></marker>
+        </defs>
+        <!-- center: warehouse -->
+        <circle cx="700" cy="180" r="80" fill="#152141" stroke="#34d399" stroke-width="2"/>
+        <text x="700" y="170" text-anchor="middle" font-size="11" class="t-mono t-green">CORE</text>
+        <text x="700" y="190" text-anchor="middle" font-size="14" class="t-dim">Warehouse +</text>
+        <text x="700" y="208" text-anchor="middle" font-size="14" class="t-dim">Model Registry</text>
+
+        <!-- 4 loops -->
+        <g>
+          <rect x="60" y="40" width="280" height="110" rx="12" fill="#1a2750" stroke="#22d3ee"/>
+          <text x="200" y="66" text-anchor="middle" font-size="11" class="t-mono t-cyan">LOOP 1 · WEEKLY</text>
+          <text x="200" y="92" text-anchor="middle" font-size="14" class="t-dim">Vendor score refresh</text>
+          <text x="200" y="112" text-anchor="middle" font-size="12" class="t-mute">propensity-weighted outcome</text>
+          <text x="200" y="130" text-anchor="middle" font-size="12" class="t-mute">+ decay applied</text>
+
+          <rect x="1060" y="40" width="280" height="110" rx="12" fill="#1a2750" stroke="#a78bfa"/>
+          <text x="1200" y="66" text-anchor="middle" font-size="11" class="t-mono t-purp">LOOP 2 · QUARTERLY</text>
+          <text x="1200" y="92" text-anchor="middle" font-size="14" class="t-dim">Classifier retrain</text>
+          <text x="1200" y="112" text-anchor="middle" font-size="12" class="t-mute">holdout validation</text>
+          <text x="1200" y="130" text-anchor="middle" font-size="12" class="t-mute">bias testing on outputs</text>
+
+          <rect x="60" y="220" width="280" height="110" rx="12" fill="#1a2750" stroke="#fbbf24"/>
+          <text x="200" y="246" text-anchor="middle" font-size="11" class="t-mono t-amber">LOOP 3 · MONTHLY</text>
+          <text x="200" y="272" text-anchor="middle" font-size="14" class="t-dim">Trigger threshold calibration</text>
+          <text x="200" y="292" text-anchor="middle" font-size="12" class="t-mute">ROI curve per service</text>
+          <text x="200" y="310" text-anchor="middle" font-size="12" class="t-mute">tighten / loosen</text>
+
+          <rect x="1060" y="220" width="280" height="110" rx="12" fill="#1a2750" stroke="#f472b6"/>
+          <text x="1200" y="246" text-anchor="middle" font-size="11" class="t-mono t-pink">LOOP 4 · MONTHLY</text>
+          <text x="1200" y="272" text-anchor="middle" font-size="14" class="t-dim">Override pattern review</text>
+          <text x="1200" y="292" text-anchor="middle" font-size="12" class="t-mute">cluster overrides by feature</text>
+          <text x="1200" y="310" text-anchor="middle" font-size="12" class="t-mute">→ feature engineering backlog</text>
+        </g>
+
+        <!-- arrows in/out -->
+        <g stroke="#34d399" stroke-width="2" fill="none" marker-end="url(#aLL)" class="flow-anim">
+          <path d="M 340 95 C 480 95 580 140 620 170"/>
+          <path d="M 1060 95 C 920 95 820 140 780 170"/>
+          <path d="M 340 275 C 480 275 580 220 620 190"/>
+          <path d="M 1060 275 C 920 275 820 220 780 190"/>
+        </g>
+
+        <!-- bottom band -->
+        <rect x="40" y="350" width="1320" height="6" fill="none"/>
+      </svg>
+    </div>
+    <p class="reveal r3 sub" style="margin-top:6px"><strong class="green">Attribution loop runs in parallel:</strong> propensity-matched estimator on the 5% randomized holdout cohort publishes counterfactual savings to finance each quarter. Without this, the whole program's value is unprovable.</p>
+  </section>
+
+  <!-- 14: Build sequence -->
+  <section class="slide">
+    <div class="reveal r1 header"><span class="num">14 / BUILD SEQUENCE</span><h2>Engineering sequencing inside the Session-I phases</h2></div>
+    <div class="grid grid-2 reveal r2" style="margin-top:14px">
+      <div class="card">
+        <div class="num">PHASE 1 · MONTHS 0–9</div>
+        <h3>Foundation slices</h3>
+        <ul class="bare" style="margin-top:8px">
+          <li><strong>M0–3:</strong> Service Catalog schema · Vendor Master schema · 8-gate evaluator · audit ledger primitives</li>
+          <li><strong>M3–6:</strong> Rules engine (DET services) · Recommendation Composer skeleton · UX SDK alpha · top-5 service categories live read-only</li>
+          <li><strong>M6–9:</strong> v1 multi-label classifier (top-5 categories) · scorecard MVP (6 factors, uncorrected) · adjuster pilot at one office · 5% holdout begins</li>
+        </ul>
+      </div>
+      <div class="card amber">
+        <div class="num">PHASE 2 · MONTHS 9–24</div>
+        <h3>Optimization slices</h3>
+        <ul class="bare" style="margin-top:8px">
+          <li><strong>M9–12:</strong> Propensity-corrected outcome scoring · timing model · anti-concentration + exploration quotas live</li>
+          <li><strong>M12–18:</strong> Vendor API published · degraded portal path · override-pattern learning loop · output-side bias testing pipeline</li>
+          <li><strong>M18–24:</strong> Catalog expanded to long-tail services · all jurisdictions · quarterly attribution report to finance · acceptance ≥70%</li>
+        </ul>
+      </div>
+      <div class="card purp">
+        <div class="num">PHASE 3 · MONTHS 24–36</div>
+        <h3>Closed-loop slices</h3>
+        <ul class="bare" style="margin-top:8px">
+          <li><strong>M24–30:</strong> Provider scoring fed by vendor outcomes · network steering tied to recommendations</li>
+          <li><strong>M30–36:</strong> GenAI adjuster knowledge-assist over recommendation history · cross-claim pattern surfacing</li>
+        </ul>
+      </div>
+      <div class="card green">
+        <div class="num">CONTINUOUS</div>
+        <h3>Always-on</h3>
+        <ul class="bare" style="margin-top:8px">
+          <li>Drift monitor on input distribution</li>
+          <li>Latency SLO burn-rate alerting</li>
+          <li>Vendor eligibility auto-checks</li>
+          <li>Audit completeness checks per recommendation</li>
+          <li>Acceptance-rate dashboard</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 15: Open architectural questions -->
+  <section class="slide">
+    <div class="reveal r1 header"><span class="num">15 / OPEN ARCHITECTURAL QUESTIONS</span><h2>The Phase-1 design tickets that block "build"</h2></div>
+    <div class="reveal r2" style="margin-top:14px">
+      <table class="tight">
+        <thead><tr><th>ID</th><th>Question</th><th>Resolve by</th></tr></thead>
+        <tbody>
+          <tr><td class="k">OQ-T1</td><td>Final composite-score weights per service family</td><td>End of Phase-1 build</td></tr>
+          <tr><td class="k">OQ-T3</td><td>Vendor API spec — degraded path SLA; how long do we tolerate non-API vendors</td><td>Phase-1 M9</td></tr>
+          <tr><td class="k">OQ-T4</td><td>Holdout cohort design — pure random vs propensity-stratified random</td><td>Pre-rollout</td></tr>
+          <tr><td class="k">OQ-T7</td><td>Adjuster post-engagement survey instrument</td><td>Phase-1 M6</td></tr>
+          <tr><td class="k">OQ-T8</td><td>Bias-testing protocol for vendor-steering outputs — protected classes inventory and thresholds per state</td><td>Pre-rollout</td></tr>
+          <tr><td class="k">OQ-T9</td><td>Cat NCM pool sizing (rare specialty) vs commodity service pools</td><td>Phase-1 M3</td></tr>
+          <tr><td class="k">OQ-T10</td><td>In-house teams (employed nurses, internal SIU, in-house counsel) — how do they enter the scorecard</td><td>Phase-1 M6</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="reveal r3" style="margin-top:30px;display:flex;gap:14px;flex-wrap:wrap">
+      <span class="pill green">Architecture ready for Phase-1 sprint planning</span>
+      <span class="pill">Capacity envelope: $4–6M of $18–25M program</span>
+      <span class="pill amber">All cross-references back to Session-I decisions D-1 through D-16</span>
+      <span class="pill purp">Decisions D-T1 → D-T18 govern this design</span>
+    </div>
+  </section>
+
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const total = slides.length;
+  let idx = 0;
+  document.getElementById('slideTotal').textContent = total;
+  function show(n){
+    n = Math.max(0, Math.min(total-1, n));
+    slides[idx].classList.remove('active');
+    idx = n;
+    slides[idx].classList.add('active');
+    document.getElementById('slideNum').textContent = idx+1;
+    document.getElementById('progress').style.width = ((idx+1)/total*100)+'%';
+  }
+  document.addEventListener('keydown', e=>{
+    if(e.key==='ArrowRight' || e.key===' ' || e.key==='PageDown') show(idx+1);
+    else if(e.key==='ArrowLeft' || e.key==='PageUp') show(idx-1);
+    else if(e.key==='Home') show(0);
+    else if(e.key==='End') show(total-1);
+    else if(e.key==='f' || e.key==='F'){
+      if(!document.fullscreenElement) document.documentElement.requestFullscreen();
+      else document.exitFullscreen();
+    }
+  });
+  document.addEventListener('click', e=>{
+    if(e.target.closest('.chrome') || e.target.closest('.navhint')) return;
+    const r = window.innerWidth;
+    if(e.clientX > r/2) show(idx+1);
+    else show(idx-1);
+  });
+  show(0);
+</script>
+</body>
+</html>

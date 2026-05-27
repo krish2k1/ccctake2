@@ -1,0 +1,1054 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>How It Works — Service Identification & Vendor Match Flow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a1020;
+    --bg-2:#0f1830;
+    --panel:#152141;
+    --panel-2:#1a2750;
+    --line:#22325c;
+    --line-soft:#1d2a4d;
+    --text:#eaf0fa;
+    --text-dim:#9fb0d0;
+    --text-mute:#6a7da3;
+    --cyan:#22d3ee;
+    --teal:#5eead4;
+    --purple:#a78bfa;
+    --amber:#fbbf24;
+    --orange:#fb923c;
+    --green:#34d399;
+    --red:#f87171;
+    --pink:#f472b6;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+  body::before{
+    content:"";position:fixed;inset:0;
+    background-image:
+      radial-gradient(900px 600px at 90% -10%, rgba(34,211,238,0.10), transparent 60%),
+      radial-gradient(700px 500px at -10% 30%, rgba(167,139,250,0.08), transparent 60%),
+      radial-gradient(600px 400px at 50% 110%, rgba(251,191,36,0.06), transparent 60%);
+    pointer-events:none;
+  }
+  .deck{position:relative;width:100vw;height:100vh}
+  .slide{
+    position:absolute;inset:0;display:none;flex-direction:column;
+    padding:5vh 5vw;opacity:0;transform:translateY(20px);
+    transition:opacity .55s ease, transform .55s ease;
+  }
+  .slide.active{display:flex;opacity:1;transform:translateY(0)}
+  .slide.active .reveal{animation:revealUp .6s ease both}
+  .slide.active .r1{animation-delay:.05s}
+  .slide.active .r2{animation-delay:.18s}
+  .slide.active .r3{animation-delay:.30s}
+  .slide.active .r4{animation-delay:.42s}
+  .slide.active .r5{animation-delay:.54s}
+  .slide.active .r6{animation-delay:.66s}
+  @keyframes revealUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+  .slide.active .pulse{animation:pulse 2.4s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:.55}50%{opacity:1}}
+  .slide.active .flow-anim{stroke-dasharray:6 6;animation:flow 1.6s linear infinite}
+  @keyframes flow{to{stroke-dashoffset:-24}}
+
+  .chrome{position:fixed;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:14px 24px;font-size:11px;color:var(--text-dim);letter-spacing:.04em;text-transform:uppercase;z-index:50}
+  .chrome.top{top:0}
+  .chrome.bot{bottom:0}
+  .brand{display:flex;align-items:center;gap:10px;font-family:'JetBrains Mono',monospace}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--cyan);box-shadow:0 0 12px var(--cyan)}
+  .progress{position:fixed;top:0;left:0;height:3px;background:linear-gradient(90deg,var(--cyan),var(--purple),var(--amber));transition:width .5s ease;z-index:60}
+
+  .kicker{color:var(--cyan);font-size:11px;letter-spacing:.22em;text-transform:uppercase;font-weight:600;margin-bottom:8px;font-family:'JetBrains Mono',monospace}
+  h1{font-size:clamp(36px,5vw,68px);font-weight:800;line-height:1.05;letter-spacing:-.02em}
+  h1 .em{background:linear-gradient(135deg,var(--cyan),var(--amber));-webkit-background-clip:text;background-clip:text;color:transparent}
+  h2{font-size:clamp(22px,3vw,36px);font-weight:700;line-height:1.1;letter-spacing:-.015em;margin-bottom:4px}
+  h3{font-size:clamp(14px,1.3vw,18px);font-weight:600;color:var(--text);margin-bottom:6px}
+  p,li{font-size:clamp(13px,1.08vw,15px);line-height:1.5;color:var(--text-dim)}
+  .lead{font-size:clamp(17px,1.4vw,21px);color:var(--text);line-height:1.5}
+  .sub{font-size:clamp(13px,1.05vw,15px);color:var(--text-mute);margin-top:6px}
+  strong{color:var(--text);font-weight:600}
+  .mono{font-family:'JetBrains Mono',monospace}
+  .t-cyan{fill:#22d3ee}.t-amber{fill:#fbbf24}.t-purp{fill:#a78bfa}.t-green{fill:#34d399}.t-red{fill:#f87171}.t-dim{fill:#9fb0d0}.t-mute{fill:#6a7da3}.t-pink{fill:#f472b6}.t-mono{font-family:'JetBrains Mono',monospace}
+
+  .pill{display:inline-flex;align-items:center;gap:6px;font-size:11px;padding:3px 9px;border-radius:999px;background:rgba(34,211,238,.10);border:1px solid rgba(34,211,238,.35);color:var(--cyan);font-weight:500;font-family:'JetBrains Mono',monospace;letter-spacing:.04em}
+  .pill.amber{background:rgba(251,191,36,.10);border-color:rgba(251,191,36,.35);color:var(--amber)}
+  .pill.green{background:rgba(52,211,153,.10);border-color:rgba(52,211,153,.35);color:var(--green)}
+  .pill.purp{background:rgba(167,139,250,.10);border-color:rgba(167,139,250,.35);color:var(--purple)}
+  .pill.red{background:rgba(248,113,113,.10);border-color:rgba(248,113,113,.35);color:var(--red)}
+
+  .header{display:flex;flex-direction:column;gap:4px;margin-bottom:6px}
+  .header .num{font-family:'JetBrains Mono',monospace;color:var(--cyan);font-size:11px;letter-spacing:.16em}
+  .figure{flex:1;display:flex;align-items:center;justify-content:center;margin-top:8px}
+  .figure svg{max-width:100%;max-height:70vh;width:100%;height:auto}
+
+  .navhint{position:fixed;right:24px;bottom:18px;font-size:11px;color:var(--text-dim);letter-spacing:.1em;text-transform:uppercase;display:flex;gap:8px;align-items:center;z-index:50}
+  kbd{font-family:'JetBrains Mono',monospace;font-size:11px;padding:3px 7px;border:1px solid var(--line);border-radius:5px;background:var(--bg-2);color:var(--text)}
+
+  .title-slide{justify-content:center;align-items:flex-start}
+  .title-slide .meta{display:flex;gap:24px;margin-top:32px;flex-wrap:wrap}
+  .title-slide .meta div{display:flex;flex-direction:column}
+  .title-slide .meta .mk{font-size:10px;letter-spacing:.18em;color:var(--text-dim);text-transform:uppercase}
+  .title-slide .meta .mv{font-size:15px;color:var(--text);font-weight:500;margin-top:3px}
+
+  .grid{display:grid;gap:14px}
+  .grid-3{grid-template-columns:repeat(3,1fr)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
+  .card .num{font-family:'JetBrains Mono',monospace;color:var(--cyan);font-size:11px;letter-spacing:.1em;margin-bottom:6px}
+</style>
+</head>
+<body>
+
+<div class="progress" id="progress" style="width:0%"></div>
+<div class="chrome top">
+  <div class="brand"><span class="dot"></span><span>TRIAGE_VENDOR_MATCH · how it works</span></div>
+  <div>Session II · 2026-05-27</div>
+</div>
+<div class="chrome bot">
+  <div>visual walkthrough · any-audience</div>
+  <div><span id="slideNum">1</span> / <span id="slideTotal">15</span></div>
+</div>
+<div class="navhint"><kbd>←</kbd><kbd>→</kbd> <span>navigate</span> <kbd>F</kbd> <span>fullscreen</span></div>
+
+<div class="deck" id="deck">
+
+<!-- 1: Title -->
+<section class="slide title-slide active">
+  <div class="reveal r1 kicker">// how the triage &amp; vendor match layer actually works</div>
+  <h1 class="reveal r2">A claim arrives.<br/>The layer picks the<br/><span class="em">right services</span>, the<br/><span class="em">right vendors</span>,<br/>the <span class="em">right moment</span>.</h1>
+  <p class="reveal r3 lead" style="margin-top:24px;max-width:1050px">15 visual slides. Three scenarios. One algorithm. One adjuster screen. One learning loop.</p>
+  <div class="meta reveal r4">
+    <div><span class="mk">Audience</span><span class="mv">Anyone — exec, ops, engineer, vendor</span></div>
+    <div><span class="mk">Reading time</span><span class="mv">~10 minutes if you click through</span></div>
+    <div><span class="mk">Anchor doc</span><span class="mv">PANEL_TRANSCRIPT.md · Session II</span></div>
+  </div>
+</section>
+
+<!-- 2: One picture overview -->
+<section class="slide">
+  <div class="reveal r1 header"><span class="num">01 / ONE PICTURE</span><h2>The whole thing in one frame</h2></div>
+  <div class="reveal r2 figure">
+    <svg viewBox="0 0 1400 580" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="aOv" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#22d3ee"/></marker>
+        <marker id="aOvg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#34d399"/></marker>
+        <linearGradient id="grOv" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#152141"/><stop offset="1" stop-color="#0f1830"/></linearGradient>
+      </defs>
+
+      <!-- top: claim arrives -->
+      <rect x="40" y="20" width="1320" height="80" rx="14" fill="url(#grOv)" stroke="#22325c"/>
+      <text x="64" y="48" font-size="12" class="t-mono t-mute">// EVENT</text>
+      <text x="700" y="55" text-anchor="middle" font-size="20" font-weight="700" style="fill:#eaf0fa">A claim moves — FNOL filed · severity scored · attorney appears · plan submitted</text>
+      <text x="700" y="80" text-anchor="middle" font-size="13" class="t-dim">whatever the trigger, the layer re-runs and recomputes</text>
+
+      <!-- center: 3 boxes -->
+      <g>
+        <rect x="40" y="130" width="420" height="220" rx="14" fill="#152141" stroke="#a78bfa"/>
+        <text x="60" y="158" font-size="11" class="t-mono t-purp">SIDE 1 · IDENTIFY SERVICES</text>
+        <text x="60" y="186" font-size="16" font-weight="700" style="fill:#eaf0fa">What does this claim need now?</text>
+        <text x="60" y="216" font-size="13" class="t-dim">36 services across 6 families. Each typed:</text>
+        <text x="60" y="240" font-size="13" class="t-cyan">DET</text><text x="100" y="240" font-size="13" class="t-dim">rules · interpreter, MSA, Sec 111</text>
+        <text x="60" y="262" font-size="13" class="t-purp">PROB</text><text x="100" y="262" font-size="13" class="t-dim">classifier · NCM, counsel, SIU</text>
+        <text x="60" y="284" font-size="13" class="t-amber">TIME</text><text x="100" y="284" font-size="13" class="t-dim">timing model · when to engage</text>
+        <text x="60" y="306" font-size="13" class="t-red">HUMAN</text><text x="100" y="306" font-size="13" class="t-dim">approval-only · surveillance</text>
+        <text x="60" y="334" font-size="12" class="t-mute">→ outputs: list of services + when + why</text>
+
+        <rect x="490" y="130" width="420" height="220" rx="14" fill="#152141" stroke="#22d3ee"/>
+        <text x="510" y="158" font-size="11" class="t-mono t-cyan">SIDE 2 · MATCH VENDORS</text>
+        <text x="510" y="186" font-size="16" font-weight="700" style="fill:#eaf0fa">Who's best at it for this claim?</text>
+        <text x="510" y="216" font-size="13" class="t-dim">For each service: filter the eligible pool, score, rank.</text>
+        <text x="510" y="244" font-size="13" class="t-amber">8 gates</text><text x="600" y="244" font-size="13" class="t-dim">licensure · insurance · BAA · capacity ...</text>
+        <text x="510" y="266" font-size="13" class="t-cyan">6 factors</text><text x="600" y="266" font-size="13" class="t-dim">outcome · cost · speed · fit · sat · compl</text>
+        <text x="510" y="288" font-size="13" class="t-green">3 rules</text><text x="600" y="288" font-size="13" class="t-dim">anti-conc · exploration · sample floor</text>
+        <text x="510" y="334" font-size="12" class="t-mute">→ outputs: top-3 vendors + cost &amp; outcome bands</text>
+
+        <rect x="940" y="130" width="420" height="220" rx="14" fill="#152141" stroke="#fbbf24"/>
+        <text x="960" y="158" font-size="11" class="t-mono t-amber">SIDE 3 · THE ADJUSTER DECIDES</text>
+        <text x="960" y="186" font-size="16" font-weight="700" style="fill:#eaf0fa">Embedded in the workflow</text>
+        <text x="960" y="216" font-size="13" class="t-dim">Recommendation appears at the decision moment.</text>
+        <text x="960" y="244" font-size="13" class="t-green">ACCEPT</text><text x="1040" y="244" font-size="13" class="t-dim">one click, vendor is engaged</text>
+        <text x="960" y="266" font-size="13" class="t-amber">SWAP</text><text x="1040" y="266" font-size="13" class="t-dim">pick rank 2 or 3 with a reason</text>
+        <text x="960" y="288" font-size="13" class="t-red">REJECT</text><text x="1040" y="288" font-size="13" class="t-dim">override entirely with a reason</text>
+        <text x="960" y="334" font-size="12" class="t-mute">→ outputs: vendor engaged · capacity tick · audit</text>
+      </g>
+
+      <!-- bottom: persistence + learning -->
+      <rect x="40" y="380" width="1320" height="80" rx="14" fill="#0f1830" stroke="#fbbf24" stroke-opacity=".5"/>
+      <text x="64" y="408" font-size="12" class="t-mono t-amber">// PERSISTED FOREVER</text>
+      <text x="700" y="415" text-anchor="middle" font-size="16" font-weight="700" style="fill:#eaf0fa">Snapshot · model versions · weights · scores · top-3 · adjuster action · outcome</text>
+      <text x="700" y="440" text-anchor="middle" font-size="13" class="t-dim">every recommendation is reproducible at point-in-time — for audit, for finance, for learning</text>
+
+      <!-- learning loop band -->
+      <rect x="40" y="490" width="1320" height="70" rx="14" fill="#0f1830" stroke="#34d399" stroke-opacity=".5"/>
+      <text x="64" y="518" font-size="12" class="t-mono t-green">// LEARNING LOOP</text>
+      <text x="700" y="525" text-anchor="middle" font-size="15" font-weight="600" style="fill:#eaf0fa">vendor scores refresh weekly · classifier retrains quarterly · thresholds reviewed monthly · override patterns mined monthly</text>
+      <text x="700" y="548" text-anchor="middle" font-size="13" class="t-dim">5% randomized holdout enables propensity-matched savings attribution — published quarterly to finance</text>
+
+      <!-- arrows -->
+      <g stroke="#22d3ee" stroke-width="2" fill="none" marker-end="url(#aOv)">
+        <line x1="700" y1="100" x2="700" y2="130"/>
+        <line x1="460" y1="240" x2="490" y2="240"/>
+        <line x1="910" y1="240" x2="940" y2="240"/>
+        <line x1="1150" y1="350" x2="1150" y2="380"/>
+      </g>
+      <path d="M 1360 525 C 1390 525 1390 240 1360 240" stroke="#34d399" stroke-width="2" stroke-dasharray="6 6" fill="none" class="flow-anim"/>
+    </svg>
+  </div>
+</section>
+
+<!-- 3: The 5-step recipe -->
+<section class="slide">
+  <div class="reveal r1 header"><span class="num">02 / THE FIVE STEPS</span><h2>Every claim event runs the same five steps</h2></div>
+  <div class="reveal r2 figure">
+    <svg viewBox="0 0 1400 380" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="a5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#22d3ee"/></marker>
+      </defs>
+      <g>
+        <circle cx="140" cy="160" r="80" fill="#152141" stroke="#22d3ee" stroke-width="2"/>
+        <text x="140" y="138" text-anchor="middle" font-size="11" class="t-mono t-cyan">STEP 1</text>
+        <text x="140" y="165" text-anchor="middle" font-size="18" font-weight="700" style="fill:#eaf0fa">Snapshot</text>
+        <text x="140" y="188" text-anchor="middle" font-size="12" class="t-dim">pin the state</text>
+
+        <circle cx="380" cy="160" r="80" fill="#152141" stroke="#a78bfa" stroke-width="2"/>
+        <text x="380" y="138" text-anchor="middle" font-size="11" class="t-mono t-purp">STEP 2</text>
+        <text x="380" y="165" text-anchor="middle" font-size="18" font-weight="700" style="fill:#eaf0fa">Identify</text>
+        <text x="380" y="188" text-anchor="middle" font-size="12" class="t-dim">services needed</text>
+
+        <circle cx="620" cy="160" r="80" fill="#152141" stroke="#22d3ee" stroke-width="2"/>
+        <text x="620" y="138" text-anchor="middle" font-size="11" class="t-mono t-cyan">STEP 3</text>
+        <text x="620" y="165" text-anchor="middle" font-size="18" font-weight="700" style="fill:#eaf0fa">Filter</text>
+        <text x="620" y="188" text-anchor="middle" font-size="12" class="t-dim">eligible pool</text>
+
+        <circle cx="860" cy="160" r="80" fill="#152141" stroke="#fbbf24" stroke-width="2"/>
+        <text x="860" y="138" text-anchor="middle" font-size="11" class="t-mono t-amber">STEP 4</text>
+        <text x="860" y="165" text-anchor="middle" font-size="18" font-weight="700" style="fill:#eaf0fa">Score &amp; Rank</text>
+        <text x="860" y="188" text-anchor="middle" font-size="12" class="t-dim">top-3 + why</text>
+
+        <circle cx="1100" cy="160" r="80" fill="#152141" stroke="#34d399" stroke-width="2"/>
+        <text x="1100" y="138" text-anchor="middle" font-size="11" class="t-mono t-green">STEP 5</text>
+        <text x="1100" y="165" text-anchor="middle" font-size="18" font-weight="700" style="fill:#eaf0fa">Adjuster</text>
+        <text x="1100" y="188" text-anchor="middle" font-size="12" class="t-dim">decides</text>
+      </g>
+      <g stroke="#22d3ee" stroke-width="2.5" fill="none" marker-end="url(#a5)" class="flow-anim">
+        <line x1="220" y1="160" x2="300" y2="160"/>
+        <line x1="460" y1="160" x2="540" y2="160"/>
+        <line x1="700" y1="160" x2="780" y2="160"/>
+        <line x1="940" y1="160" x2="1020" y2="160"/>
+      </g>
+      <g font-size="11">
+        <text x="140" y="270" text-anchor="middle" class="t-amber t-mono">&lt; 100 ms</text>
+        <text x="140" y="290" text-anchor="middle" class="t-mute">claim state pinned</text>
+        <text x="380" y="270" text-anchor="middle" class="t-amber t-mono">&lt; 500 ms</text>
+        <text x="380" y="290" text-anchor="middle" class="t-mute">rules + classifier + timing</text>
+        <text x="620" y="270" text-anchor="middle" class="t-amber t-mono">&lt; 200 ms</text>
+        <text x="620" y="290" text-anchor="middle" class="t-mute">8 gates + per-claim filter</text>
+        <text x="860" y="270" text-anchor="middle" class="t-amber t-mono">&lt; 700 ms</text>
+        <text x="860" y="290" text-anchor="middle" class="t-mute">6-factor composite · top-3</text>
+        <text x="1100" y="270" text-anchor="middle" class="t-green t-mono">human-paced</text>
+        <text x="1100" y="290" text-anchor="middle" class="t-mute">embedded in workflow</text>
+      </g>
+      <rect x="40" y="320" width="1320" height="44" rx="8" fill="#1a2750" stroke="#22d3ee" stroke-opacity=".3"/>
+      <text x="60" y="348" font-size="13" class="t-cyan t-mono">P50 &lt; 2 seconds total · P95 &lt; 5 seconds · the adjuster never waits</text>
+    </svg>
+  </div>
+</section>
+
+<!-- 4: Scenario A: back strain -->
+<section class="slide">
+  <div class="reveal r1 header"><span class="num">03 / SCENARIO A · ROUTINE LOST-TIME</span><h2>Back strain · TX · lost time · day 9 opioid</h2></div>
+  <div class="reveal r2 figure">
+    <svg viewBox="0 0 1400 480" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="aA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#22d3ee"/></marker>
+        <marker id="aAg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#34d399"/></marker>
+      </defs>
+      <g font-size="11" class="t-mono t-mute" text-anchor="end">
+        <text x="120" y="60">CLAIM EVENT</text>
+        <text x="120" y="140">LAYER · IDENTIFY</text>
+        <text x="120" y="240">LAYER · MATCH</text>
+        <text x="120" y="340">ADJUSTER</text>
+        <text x="120" y="430">VENDOR ENGAGED</text>
+      </g>
+      <g stroke="#1d2a4d" stroke-width="1">
+        <line x1="140" y1="30" x2="1380" y2="30"/>
+        <line x1="140" y1="100" x2="1380" y2="100"/>
+        <line x1="140" y1="200" x2="1380" y2="200"/>
+        <line x1="140" y1="300" x2="1380" y2="300"/>
+        <line x1="140" y1="390" x2="1380" y2="390"/>
+        <line x1="140" y1="470" x2="1380" y2="470"/>
+      </g>
+
+      <!-- events on top lane -->
+      <g>
+        <rect x="160" y="42" width="230" height="50" rx="8" fill="#152141" stroke="#22d3ee"/>
+        <text x="275" y="62" text-anchor="middle" font-size="11" class="t-mono t-cyan">EVENT · DAY 9</text>
+        <text x="275" y="80" text-anchor="middle" font-size="13" class="t-dim">PrescriptionFilled (opioid)</text>
+      </g>
+
+      <!-- identify lane -->
+      <g>
+        <rect x="160" y="120" width="230" height="60" rx="8" fill="#1a2750" stroke="#a78bfa"/>
+        <text x="275" y="142" text-anchor="middle" font-size="11" class="t-mono t-purp">RULES + CLASSIFIER</text>
+        <text x="275" y="160" text-anchor="middle" font-size="13" class="t-dim">A1 TCM · B3 PBM intervention</text>
+        <text x="275" y="175" text-anchor="middle" font-size="12" class="t-mute">why: opioid&gt;7d · multi-provider</text>
+      </g>
+      <g>
+        <rect x="420" y="120" width="230" height="60" rx="8" fill="#1a2750" stroke="#fbbf24"/>
+        <text x="535" y="142" text-anchor="middle" font-size="11" class="t-mono t-amber">TIMING MODEL</text>
+        <text x="535" y="160" text-anchor="middle" font-size="13" class="t-dim">A1 · engage NOW</text>
+        <text x="535" y="175" text-anchor="middle" font-size="12" class="t-mute">B3 · within 48h</text>
+      </g>
+
+      <!-- match lane -->
+      <g>
+        <rect x="160" y="220" width="230" height="60" rx="8" fill="#1a2750" stroke="#22d3ee"/>
+        <text x="275" y="240" text-anchor="middle" font-size="11" class="t-mono t-cyan">A1 · ELIGIBLE POOL · TX</text>
+        <text x="275" y="260" text-anchor="middle" font-size="12" class="t-dim">Genex · Paradigm · CorVel</text>
+        <text x="275" y="275" text-anchor="middle" font-size="12" class="t-dim">Concentra (provisional)</text>
+      </g>
+      <g>
+        <rect x="420" y="220" width="230" height="60" rx="8" fill="#1a2750" stroke="#22d3ee"/>
+        <text x="535" y="240" text-anchor="middle" font-size="11" class="t-mono t-cyan">A1 · TOP-3</text>
+        <text x="535" y="258" text-anchor="middle" font-size="13" class="t-dim">Genex 82.6 · Paradigm 81.3</text>
+        <text x="535" y="274" text-anchor="middle" font-size="13" class="t-dim">CorVel 79.4</text>
+      </g>
+      <g>
+        <rect x="680" y="220" width="230" height="60" rx="8" fill="#1a2750" stroke="#22d3ee"/>
+        <text x="795" y="240" text-anchor="middle" font-size="11" class="t-mono t-cyan">B3 · TOP-3</text>
+        <text x="795" y="258" text-anchor="middle" font-size="13" class="t-dim">myMatrixx 84.1</text>
+        <text x="795" y="274" text-anchor="middle" font-size="13" class="t-dim">Optum 82.0 · ScriptAdv 79.6</text>
+      </g>
+
+      <!-- adjuster -->
+      <g>
+        <rect x="420" y="320" width="230" height="60" rx="8" fill="#152141" stroke="#34d399"/>
+        <text x="535" y="342" text-anchor="middle" font-size="11" class="t-mono t-green">ADJUSTER · 18 sec</text>
+        <text x="535" y="360" text-anchor="middle" font-size="13" class="t-dim">accepts Genex (rank 1)</text>
+        <text x="535" y="375" text-anchor="middle" font-size="12" class="t-mute">accepts myMatrixx (rank 1)</text>
+      </g>
+
+      <!-- vendor engaged -->
+      <g>
+        <rect x="420" y="410" width="230" height="50" rx="8" fill="#152141" stroke="#34d399"/>
+        <text x="535" y="430" text-anchor="middle" font-size="11" class="t-mono t-green">VENDOR API</text>
+        <text x="535" y="448" text-anchor="middle" font-size="13" class="t-dim">intake packet → Genex</text>
+      </g>
+      <g>
+        <rect x="680" y="410" width="230" height="50" rx="8" fill="#152141" stroke="#34d399"/>
+        <text x="795" y="430" text-anchor="middle" font-size="11" class="t-mono t-green">VENDOR API</text>
+        <text x="795" y="448" text-anchor="middle" font-size="13" class="t-dim">intake packet → myMatrixx</text>
+      </g>
+
+      <!-- arrows -->
+      <g stroke="#22d3ee" stroke-width="2" fill="none" marker-end="url(#aA)">
+        <path d="M 275 92 C 275 110 275 120 275 120"/>
+        <line x1="390" y1="150" x2="420" y2="150"/>
+        <path d="M 275 180 C 275 200 275 215 275 220"/>
+        <line x1="390" y1="250" x2="420" y2="250"/>
+        <path d="M 650 250 C 670 250 675 250 680 250"/>
+        <path d="M 535 280 C 535 305 535 315 535 320"/>
+      </g>
+      <g stroke="#34d399" stroke-width="2" fill="none" marker-end="url(#aAg)">
+        <path d="M 535 380 C 535 400 535 405 535 410"/>
+        <path d="M 535 380 C 600 380 795 400 795 410"/>
+      </g>
+
+      <!-- result -->
+      <rect x="970" y="220" width="400" height="240" rx="12" fill="#0f1830" stroke="#34d399"/>
+      <text x="990" y="248" font-size="12" class="t-mono t-green">// OUTCOME · 12 weeks later</text>
+      <text x="990" y="280" font-size="14" class="t-dim">Genex TCM engaged day-9</text>
+      <text x="990" y="302" font-size="14" class="t-dim">Modified duty placed day-24</text>
+      <text x="990" y="324" font-size="14" class="t-dim">PBM intervention reduced opioid</text>
+      <text x="990" y="346" font-size="14" class="t-dim">RTW day 78 · claim closed day 95</text>
+      <text x="990" y="380" font-size="16" font-weight="700" class="t-green">Total cost · $11,840</text>
+      <text x="990" y="404" font-size="12" class="t-mute">vs. desk-B counterfactual $24.7K</text>
+      <text x="990" y="426" font-size="12" class="t-mute">vs. desk-C counterfactual $48.2K</text>
+      <text x="990" y="450" font-size="11" class="t-amber t-mono">attribution: ~$13K saved · banked Q3</text>
+    </svg>
+  </div>
+</section>
+
+<!-- 5: Scenario B catastrophic -->
+<section class="slide">
+  <div class="reveal r1 header"><span class="num">04 / SCENARIO B · CATASTROPHIC</span><h2>Severe TBI · multi-trauma · cat flag at FNOL</h2></div>
+  <div class="reveal r2 figure">
+    <svg viewBox="0 0 1400 480" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="aB" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#f87171"/></marker>
+      </defs>
+      <!-- top: FNOL -->
+      <rect x="40" y="30" width="280" height="80" rx="10" fill="#152141" stroke="#f87171"/>
+      <text x="180" y="58" text-anchor="middle" font-size="11" class="t-mono t-red">FNOL · hour 0</text>
+      <text x="180" y="80" text-anchor="middle" font-size="14" class="t-dim">CatastrophicFlagSet</text>
+      <text x="180" y="98" text-anchor="middle" font-size="12" class="t-mute">TBI · multi-trauma · ICU</text>
+
+      <!-- DET rules fire -->
+      <rect x="360" y="30" width="980" height="80" rx="10" fill="#0f1830" stroke="#22d3ee" stroke-opacity=".5"/>
+      <text x="380" y="58" font-size="11" class="t-mono t-cyan">// DETERMINISTIC RULES · zero classifier confidence required</text>
+      <text x="850" y="80" text-anchor="middle" font-size="14" class="t-dim">A3 Cat NCM · C1 Voc Rehab Standby · B8 Hospital Steering · C5 Interpretation (if needed)</text>
+      <text x="850" y="100" text-anchor="middle" font-size="12" class="t-mute">all auto-presented within 24h of catastrophic flag — R-UX-06</text>
+
+      <!-- match -->
+      <rect x="40" y="140" width="640" height="160" rx="10" fill="#152141" stroke="#a78bfa"/>
+      <text x="60" y="166" font-size="11" class="t-mono t-purp">A3 · CAT NCM · ELIGIBLE POOL · small specialty pool by design</text>
+      <text x="60" y="195" font-size="14" class="t-dim">Paradigm Catastrophic · Genex Catastrophic · ISYS · MedCor</text>
+      <text x="60" y="225" font-size="13" class="t-amber">per-claim specialty fit: TBI sub-specialty heavily weighted</text>
+      <text x="60" y="248" font-size="14" font-weight="600" style="fill:#eaf0fa">TOP-3: Paradigm Cat 89.2 · ISYS 86.4 · MedCor 83.1</text>
+      <text x="60" y="275" font-size="12" class="t-mute">cost band $35K–$95K lifetime · outcome band varies by recovery trajectory</text>
+
+      <!-- adjuster -->
+      <rect x="720" y="140" width="620" height="160" rx="10" fill="#152141" stroke="#34d399"/>
+      <text x="740" y="166" font-size="11" class="t-mono t-green">ADJUSTER · catastrophic protocol</text>
+      <text x="740" y="195" font-size="14" class="t-dim">Catastrophic claims escalate to senior desk</text>
+      <text x="740" y="220" font-size="14" class="t-dim">Layer auto-presents top-3 plus claim-history rationale</text>
+      <text x="740" y="245" font-size="14" font-weight="600" style="fill:#eaf0fa">Senior adjuster accepts Paradigm Cat after 90s review</text>
+      <text x="740" y="270" font-size="12" class="t-amber">recommendation is the starting point — not a substitution for judgment</text>
+
+      <!-- vendor engaged -->
+      <rect x="40" y="330" width="1300" height="120" rx="10" fill="#0f1830" stroke="#34d399" stroke-opacity=".5"/>
+      <text x="60" y="356" font-size="11" class="t-mono t-green">// VENDOR ENGAGED · day 1</text>
+      <text x="60" y="385" font-size="14" class="t-dim">Paradigm Cat dispatches field nurse to ICU within 6 hours · clinical coordination begins</text>
+      <text x="60" y="408" font-size="14" class="t-dim">C1 voc rehab placeholder created (engaged at MMI) · B8 hospital network steering active</text>
+      <text x="60" y="434" font-size="13" font-weight="600" class="t-green">outcome impact (industry benchmark): early Cat NCM reduces lifetime cost 12-18% vs late engagement</text>
+
+      <!-- arrow -->
+      <g stroke="#f87171" stroke-width="2" fill="none" marker-end="url(#aB)">
+        <line x1="320" y1="70" x2="360" y2="70"/>
+      </g>
+    </svg>
+  </div>
+</section>
+
+<!-- 6: Scenario C surveillance -->
+<section class="slide">
+  <div class="reveal r1 header"><span class="num">05 / SCENARIO C · SIU RED FLAG</span><h2>Surveillance is recommended — but never auto-engaged</h2></div>
+  <div class="reveal r2 figure">
+    <svg viewBox="0 0 1400 460" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="aC" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#22d3ee"/></marker>
+        <marker id="aCr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#f87171"/></marker>
+      </defs>
+      <!-- claim event -->
+      <rect x="40" y="30" width="260" height="80" rx="10" fill="#152141" stroke="#22d3ee"/>
+      <text x="170" y="58" text-anchor="middle" font-size="11" class="t-mono t-cyan">SIGNAL</text>
+      <text x="170" y="82" text-anchor="middle" font-size="13" class="t-dim">Disability vs activity</text>
+      <text x="170" y="100" text-anchor="middle" font-size="13" class="t-dim">inconsistency · prior pattern</text>
+
+      <!-- classifier -->
+      <rect x="340" y="30" width="280" height="80" rx="10" fill="#1a2750" stroke="#a78bfa"/>
+      <text x="480" y="58" text-anchor="middle" font-size="11" class="t-mono t-purp">SERVICE IDENTIFIER</text>
+      <text x="480" y="80" text-anchor="middle" font-size="13" class="t-dim">D1 SIU · confidence 0.74</text>
+      <text x="480" y="98" text-anchor="middle" font-size="13" class="t-dim">D2 Surveillance · confidence 0.61</text>
+
+      <!-- D1 goes normal route -->
+      <rect x="40" y="160" width="580" height="110" rx="10" fill="#152141" stroke="#22d3ee"/>
+      <text x="60" y="186" font-size="11" class="t-mono t-cyan">D1 · NORMAL FLOW</text>
+      <text x="60" y="212" font-size="14" class="t-dim">Pool: Frasco · AISG · Marshall · ICS</text>
+      <text x="60" y="234" font-size="14" font-weight="600" style="fill:#eaf0fa">Top-3 presented · adjuster accepts Frasco for fact-finding</text>
+      <text x="60" y="258" font-size="12" class="t-mute">SIU is investigation · no adverse action · normal recommendation flow</text>
+
+      <!-- D2 diverges -->
+      <rect x="660" y="160" width="680" height="240" rx="10" fill="#1a2750" stroke="#f87171" stroke-width="2"/>
+      <text x="680" y="188" font-size="11" class="t-mono t-red">D2 · SURVEILLANCE · HUMAN APPROVAL REQUIRED</text>
+      <text x="680" y="216" font-size="14" class="t-dim">Recommendation does NOT route to a vendor automatically.</text>
+      <text x="680" y="244" font-size="14" font-weight="600" style="fill:#eaf0fa">Triggers SurveillanceApprovalRequested workflow.</text>
+
+      <text x="680" y="284" font-size="12" class="t-amber t-mono">// approval workflow</text>
+      <text x="680" y="306" font-size="13" class="t-dim">1. Claim supervisor review</text>
+      <text x="680" y="324" font-size="13" class="t-dim">2. Compliance / legal sign-off (state laws vary)</text>
+      <text x="680" y="342" font-size="13" class="t-dim">3. Named-human approval logged</text>
+      <text x="680" y="360" font-size="13" class="t-dim">4. Only then: top-3 surveillance vendors presented for engagement</text>
+      <text x="680" y="382" font-size="11" class="t-mute">all four steps persisted with rationale — regulator-ready</text>
+
+      <!-- bottom band -->
+      <rect x="40" y="420" width="1300" height="34" rx="8" fill="#0f1830" stroke="#f87171" stroke-opacity=".5"/>
+      <text x="60" y="442" font-size="12" class="t-red t-mono">Decision D-T9 · surveillance recommendations are advisory only · no D2 vendor is ever auto-routed</text>
+
+      <!-- arrows -->
+      <g stroke="#22d3ee" stroke-width="2" fill="none" marker-end="url(#aC)">
+        <line x1="300" y1="70" x2="340" y2="70"/>
+        <path d="M 420 110 C 420 140 330 150 330 160"/>
+      </g>
+      <g stroke="#f87171" stroke-width="2" fill="none" marker-end="url(#aCr)">
+        <path d="M 540 110 C 540 140 750 150 750 160"/>
+      </g>
+    </svg>
+  </div>
+</section>
+
+<!-- 7: Service trigger map -->
+<section class="slide">
+  <div class="reveal r1 header"><span class="num">06 / SERVICE TRIGGER MAP</span><h2>Signals on the left fire services on the right</h2></div>
+  <div class="reveal r2 figure">
+    <svg viewBox="0 0 1400 540" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="aT" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#22d3ee" fill-opacity=".6"/></marker>
+      </defs>
+      <!-- column heads -->
+      <text x="200" y="30" text-anchor="middle" font-size="12" class="t-mono t-cyan">SIGNAL (left)</text>
+      <text x="1100" y="30" text-anchor="middle" font-size="12" class="t-mono t-amber">SERVICE FIRED (right)</text>
+
+      <!-- signals -->
+      <g font-size="13" class="t-dim">
+        <rect x="40" y="50" width="320" height="36" rx="6" fill="#152141" stroke="#22325c"/><text x="60" y="73">Lost-time &gt; 7 days</text>
+        <rect x="40" y="96" width="320" height="36" rx="6" fill="#152141" stroke="#22325c"/><text x="60" y="119">Severity ≥ 0.6 within 7 days of DOI</text>
+        <rect x="40" y="142" width="320" height="36" rx="6" fill="#152141" stroke="#22325c"/><text x="60" y="165">Catastrophic flag set at FNOL</text>
+        <rect x="40" y="188" width="320" height="36" rx="6" fill="#152141" stroke="#22325c"/><text x="60" y="211">Language indicator ≠ English</text>
+        <rect x="40" y="234" width="320" height="36" rx="6" fill="#152141" stroke="#22325c"/><text x="60" y="257">Opioid Rx beyond 14 days</text>
+        <rect x="40" y="280" width="320" height="36" rx="6" fill="#152141" stroke="#22325c"/><text x="60" y="303">Lag-time DOI → FNOL &gt; 21 days</text>
+        <rect x="40" y="326" width="320" height="36" rx="6" fill="#152141" stroke="#22325c"/><text x="60" y="349">Litigation propensity ≥ 0.5</text>
+        <rect x="40" y="372" width="320" height="36" rx="6" fill="#152141" stroke="#22325c"/><text x="60" y="395">No improvement at 60-90 days</text>
+        <rect x="40" y="418" width="320" height="36" rx="6" fill="#152141" stroke="#22325c"/><text x="60" y="441">Settlement contemplated + Medicare exposure</text>
+        <rect x="40" y="464" width="320" height="36" rx="6" fill="#152141" stroke="#22325c"/><text x="60" y="487">Third-party liability indicator at FNOL</text>
+      </g>
+
+      <!-- services -->
+      <g font-size="13" class="t-dim">
+        <rect x="940" y="50" width="420" height="36" rx="6" fill="#1a2750" stroke="#22d3ee"/><text x="960" y="73"><tspan class="t-cyan t-mono">A1</tspan> TCM · <tspan class="t-cyan t-mono">C2</tspan> RTW coord · <tspan class="t-cyan t-mono">C3</tspan> Job analysis · <tspan class="t-cyan t-mono">C4</tspan> Modified duty</text>
+        <rect x="940" y="96" width="420" height="36" rx="6" fill="#1a2750" stroke="#22d3ee"/><text x="960" y="119"><tspan class="t-cyan t-mono">A2</tspan> Field NCM · early reserve review</text>
+        <rect x="940" y="142" width="420" height="36" rx="6" fill="#1a2750" stroke="#f87171"/><text x="960" y="165"><tspan class="t-red t-mono">A3</tspan> Cat NCM · <tspan class="t-red t-mono">B8</tspan> Hospital steering · <tspan class="t-red t-mono">C1</tspan> Voc rehab standby</text>
+        <rect x="940" y="188" width="420" height="36" rx="6" fill="#1a2750" stroke="#22d3ee"/><text x="960" y="211"><tspan class="t-cyan t-mono">C5</tspan> Interpretation · <tspan class="t-cyan t-mono">F4</tspan> Translation (every clinical touch)</text>
+        <rect x="940" y="234" width="420" height="36" rx="6" fill="#1a2750" stroke="#a78bfa"/><text x="960" y="257"><tspan class="t-purp t-mono">A1</tspan> TCM (if not active) · <tspan class="t-purp t-mono">B3</tspan> PBM intervention · <tspan class="t-purp t-mono">B7</tspan> Specialty</text>
+        <rect x="940" y="280" width="420" height="36" rx="6" fill="#1a2750" stroke="#a78bfa"/><text x="960" y="303"><tspan class="t-purp t-mono">D1</tspan> SIU · <tspan class="t-purp t-mono">D3</tspan> AOE/COE · <tspan class="t-purp t-mono">D4</tspan> Recorded statement</text>
+        <rect x="940" y="326" width="420" height="36" rx="6" fill="#1a2750" stroke="#fbbf24"/><text x="960" y="349"><tspan class="t-amber t-mono">D6</tspan> Defense counsel · <tspan class="t-amber t-mono">E1</tspan> Mediation (timing)</text>
+        <rect x="940" y="372" width="420" height="36" rx="6" fill="#1a2750" stroke="#a78bfa"/><text x="960" y="395"><tspan class="t-purp t-mono">A5</tspan> Peer review · <tspan class="t-purp t-mono">A6</tspan> IME · <tspan class="t-purp t-mono">A7</tspan> FCE</text>
+        <rect x="940" y="418" width="420" height="36" rx="6" fill="#1a2750" stroke="#22d3ee"/><text x="960" y="441"><tspan class="t-cyan t-mono">E3</tspan> MSA · <tspan class="t-cyan t-mono">E4</tspan> Section 111 · <tspan class="t-cyan t-mono">E5</tspan> Liens · <tspan class="t-cyan t-mono">E2</tspan> Structured</text>
+        <rect x="940" y="464" width="420" height="36" rx="6" fill="#1a2750" stroke="#a78bfa"/><text x="960" y="487"><tspan class="t-purp t-mono">E6</tspan> Subrogation</text>
+      </g>
+
+      <!-- connecting arrows -->
+      <g stroke="#22d3ee" stroke-width="1.4" stroke-opacity=".55" fill="none" marker-end="url(#aT)">
+        <path d="M 360 68 C 600 68 700 68 940 68"/>
+        <path d="M 360 114 C 600 114 700 114 940 114"/>
+        <path d="M 360 160 C 600 160 700 160 940 160"/>
+        <path d="M 360 206 C 600 206 700 206 940 206"/>
+        <path d="M 360 252 C 600 252 700 252 940 252"/>
+        <path d="M 360 298 C 600 298 700 298 940 298"/>
+        <path d="M 360 344 C 600 344 700 344 940 344"/>
+        <path d="M 360 390 C 600 390 700 390 940 390"/>
+        <path d="M 360 436 C 600 436 700 436 940 436"/>
+        <path d="M 360 482 C 600 482 700 482 940 482"/>
+      </g>
+
+      <!-- legend -->
+      <g font-size="11" class="t-mono">
+        <text x="500" y="525" class="t-cyan">DET — deterministic rule</text>
+        <text x="730" y="525" class="t-purp">PROB — classifier</text>
+        <text x="920" y="525" class="t-amber">TIME — timing model</text>
+        <text x="1100" y="525" class="t-red">HUMAN — approval required</text>
+      </g>
+    </svg>
+  </div>
+</section>
+
+<!-- 8: Vendor scorecard visualized -->
+<section class="slide">
+  <div class="reveal r1 header"><span class="num">07 / VENDOR SCORECARD</span><h2>One score per vendor per service per claim · six factors</h2></div>
+  <div class="reveal r2 figure">
+    <svg viewBox="0 0 1400 480" xmlns="http://www.w3.org/2000/svg">
+      <!-- title -->
+      <text x="40" y="32" font-size="12" class="t-mono t-mute">// SCORE = 0.40·Outcome + 0.25·Cost + 0.15·Speed + 0.10·SpecialtyFit + 0.05·AdjusterSat + 0.05·Compliance</text>
+
+      <!-- column headers -->
+      <g font-size="11" class="t-mono t-mute">
+        <text x="180" y="80">VENDOR</text>
+        <text x="430" y="80">OUTCOME · 40</text>
+        <text x="620" y="80">COST · 25</text>
+        <text x="780" y="80">SPEED · 15</text>
+        <text x="930" y="80">FIT · 10</text>
+        <text x="1070" y="80">SAT · 5</text>
+        <text x="1170" y="80">COMPL · 5</text>
+        <text x="1290" y="80">COMPOSITE</text>
+      </g>
+
+      <!-- vendor 1: Genex -->
+      <g>
+        <rect x="40" y="100" width="1330" height="64" rx="8" fill="#152141" stroke="#34d399"/>
+        <text x="60" y="128" font-size="15" font-weight="700" style="fill:#eaf0fa">Genex</text>
+        <text x="60" y="148" font-size="11" class="t-mute">n=412 closed · TX · A1 TCM · shoulder</text>
+        <!-- bars -->
+        <rect x="380" y="118" width="190" height="14" rx="3" fill="#0f1830"/><rect x="380" y="118" width="154" height="14" rx="3" fill="#22d3ee"/>
+        <text x="540" y="148" font-size="11" class="t-cyan t-mono">81</text>
+        <rect x="590" y="118" width="160" height="14" rx="3" fill="#0f1830"/><rect x="590" y="118" width="122" height="14" rx="3" fill="#22d3ee"/>
+        <text x="720" y="148" font-size="11" class="t-cyan t-mono">76</text>
+        <rect x="760" y="118" width="140" height="14" rx="3" fill="#0f1830"/><rect x="760" y="118" width="123" height="14" rx="3" fill="#22d3ee"/>
+        <text x="870" y="148" font-size="11" class="t-cyan t-mono">88</text>
+        <rect x="910" y="118" width="130" height="14" rx="3" fill="#0f1830"/><rect x="910" y="118" width="120" height="14" rx="3" fill="#34d399"/>
+        <text x="1000" y="148" font-size="11" class="t-green t-mono">92</text>
+        <rect x="1050" y="118" width="100" height="14" rx="3" fill="#0f1830"/><rect x="1050" y="118" width="78" height="14" rx="3" fill="#22d3ee"/>
+        <text x="1120" y="148" font-size="11" class="t-cyan t-mono">78</text>
+        <rect x="1160" y="118" width="100" height="14" rx="3" fill="#0f1830"/><rect x="1160" y="118" width="95" height="14" rx="3" fill="#34d399"/>
+        <text x="1230" y="148" font-size="11" class="t-green t-mono">95</text>
+        <text x="1300" y="138" font-size="22" font-weight="800" class="t-green">82.6</text>
+        <text x="1300" y="155" font-size="10" class="t-mute t-mono">RANK 1</text>
+      </g>
+
+      <!-- vendor 2: Paradigm -->
+      <g>
+        <rect x="40" y="174" width="1330" height="64" rx="8" fill="#152141" stroke="#22d3ee"/>
+        <text x="60" y="202" font-size="15" font-weight="700" style="fill:#eaf0fa">Paradigm</text>
+        <text x="60" y="222" font-size="11" class="t-mute">n=287 closed · TX · A1 TCM · shoulder</text>
+        <rect x="380" y="192" width="190" height="14" rx="3" fill="#0f1830"/><rect x="380" y="192" width="160" height="14" rx="3" fill="#34d399"/>
+        <text x="540" y="222" font-size="11" class="t-green t-mono">84</text>
+        <rect x="590" y="192" width="160" height="14" rx="3" fill="#0f1830"/><rect x="590" y="192" width="112" height="14" rx="3" fill="#fbbf24"/>
+        <text x="720" y="222" font-size="11" class="t-amber t-mono">70</text>
+        <rect x="760" y="192" width="140" height="14" rx="3" fill="#0f1830"/><rect x="760" y="192" width="113" height="14" rx="3" fill="#22d3ee"/>
+        <text x="870" y="222" font-size="11" class="t-cyan t-mono">81</text>
+        <rect x="910" y="192" width="130" height="14" rx="3" fill="#0f1830"/><rect x="910" y="192" width="109" height="14" rx="3" fill="#22d3ee"/>
+        <text x="1000" y="222" font-size="11" class="t-cyan t-mono">84</text>
+        <rect x="1050" y="192" width="100" height="14" rx="3" fill="#0f1830"/><rect x="1050" y="192" width="81" height="14" rx="3" fill="#22d3ee"/>
+        <text x="1120" y="222" font-size="11" class="t-cyan t-mono">81</text>
+        <rect x="1160" y="192" width="100" height="14" rx="3" fill="#0f1830"/><rect x="1160" y="192" width="95" height="14" rx="3" fill="#34d399"/>
+        <text x="1230" y="222" font-size="11" class="t-green t-mono">95</text>
+        <text x="1300" y="212" font-size="22" font-weight="800" class="t-cyan">81.3</text>
+        <text x="1300" y="229" font-size="10" class="t-mute t-mono">RANK 2</text>
+      </g>
+
+      <!-- vendor 3: CorVel -->
+      <g>
+        <rect x="40" y="248" width="1330" height="64" rx="8" fill="#152141" stroke="#22d3ee"/>
+        <text x="60" y="276" font-size="15" font-weight="700" style="fill:#eaf0fa">CorVel</text>
+        <text x="60" y="296" font-size="11" class="t-mute">n=356 closed · TX · A1 TCM · shoulder</text>
+        <rect x="380" y="266" width="190" height="14" rx="3" fill="#0f1830"/><rect x="380" y="266" width="146" height="14" rx="3" fill="#22d3ee"/>
+        <text x="540" y="296" font-size="11" class="t-cyan t-mono">77</text>
+        <rect x="590" y="266" width="160" height="14" rx="3" fill="#0f1830"/><rect x="590" y="266" width="131" height="14" rx="3" fill="#34d399"/>
+        <text x="720" y="296" font-size="11" class="t-green t-mono">82</text>
+        <rect x="760" y="266" width="140" height="14" rx="3" fill="#0f1830"/><rect x="760" y="266" width="118" height="14" rx="3" fill="#22d3ee"/>
+        <text x="870" y="296" font-size="11" class="t-cyan t-mono">84</text>
+        <rect x="910" y="266" width="130" height="14" rx="3" fill="#0f1830"/><rect x="910" y="266" width="101" height="14" rx="3" fill="#22d3ee"/>
+        <text x="1000" y="296" font-size="11" class="t-cyan t-mono">78</text>
+        <rect x="1050" y="266" width="100" height="14" rx="3" fill="#0f1830"/><rect x="1050" y="266" width="75" height="14" rx="3" fill="#22d3ee"/>
+        <text x="1120" y="296" font-size="11" class="t-cyan t-mono">75</text>
+        <rect x="1160" y="266" width="100" height="14" rx="3" fill="#0f1830"/><rect x="1160" y="266" width="92" height="14" rx="3" fill="#22d3ee"/>
+        <text x="1230" y="296" font-size="11" class="t-cyan t-mono">92</text>
+        <text x="1300" y="286" font-size="22" font-weight="800" class="t-cyan">79.4</text>
+        <text x="1300" y="303" font-size="10" class="t-mute t-mono">RANK 3</text>
+      </g>
+
+      <!-- vendor 4: Concentra (provisional) -->
+      <g>
+        <rect x="40" y="322" width="1330" height="64" rx="8" fill="#152141" stroke="#fbbf24" stroke-dasharray="5 5"/>
+        <text x="60" y="350" font-size="15" font-weight="700" style="fill:#eaf0fa">Concentra</text>
+        <text x="60" y="370" font-size="11" class="t-mute">n=24 closed · TX · below sample-size floor (30)</text>
+        <text x="700" y="358" text-anchor="middle" font-size="13" class="t-amber t-mono">PROVISIONAL · flagged not ranked · eligible for 5% exploration quota</text>
+        <text x="1300" y="358" font-size="14" font-weight="700" class="t-amber">flag</text>
+        <text x="1300" y="375" font-size="10" class="t-mute t-mono">RANK —</text>
+      </g>
+
+      <!-- governance footnote -->
+      <rect x="40" y="410" width="1330" height="50" rx="8" fill="#0f1830" stroke="#a78bfa" stroke-opacity=".5"/>
+      <text x="60" y="436" font-size="12" class="t-mono t-purp">// GOVERNANCE</text>
+      <text x="240" y="436" font-size="13" class="t-dim">anti-concentration cap: Genex can't take &gt;50% of A1-TX volume · exploration quota: 5% routed to Concentra to refresh data</text>
+    </svg>
+  </div>
+</section>
+
+<!-- 9: Match algorithm -->
+<section class="slide">
+  <div class="reveal r1 header"><span class="num">08 / MATCH ALGORITHM</span><h2>From snapshot to ranked recommendation · in one picture</h2></div>
+  <div class="reveal r2 figure">
+    <svg viewBox="0 0 1400 540" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="aM" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#22d3ee"/></marker>
+      </defs>
+      <!-- Input -->
+      <rect x="40" y="40" width="320" height="120" rx="14" fill="#152141" stroke="#22d3ee"/>
+      <text x="60" y="68" font-size="11" class="t-mono t-cyan">INPUT · ClaimSnapshot</text>
+      <text x="60" y="92" font-size="13" class="t-dim">claim_id · jurisdiction · severity</text>
+      <text x="60" y="112" font-size="13" class="t-dim">body part · language · geography</text>
+      <text x="60" y="132" font-size="13" class="t-dim">reserve · engaged services · plan</text>
+
+      <!-- Step 2 services -->
+      <rect x="420" y="40" width="320" height="120" rx="14" fill="#152141" stroke="#a78bfa"/>
+      <text x="440" y="68" font-size="11" class="t-mono t-purp">SERVICES NEEDED</text>
+      <text x="440" y="92" font-size="13" class="t-dim">A1 TCM · why: opioid&gt;7d (DET)</text>
+      <text x="440" y="112" font-size="13" class="t-dim">B3 PBM intervention · why: same</text>
+      <text x="440" y="132" font-size="13" class="t-dim">timing: A1 NOW · B3 within 48h</text>
+
+      <!-- Pool filter -->
+      <rect x="800" y="40" width="320" height="120" rx="14" fill="#152141" stroke="#22d3ee"/>
+      <text x="820" y="68" font-size="11" class="t-mono t-cyan">A1 · ELIGIBLE POOL · TX</text>
+      <text x="820" y="92" font-size="13" class="t-dim">all 8 gates ✓ + jurisdiction TX</text>
+      <text x="820" y="112" font-size="13" class="t-dim">+ no COI + capacity &lt; 85%</text>
+      <text x="820" y="132" font-size="13" class="t-dim">→ 4 eligible vendors</text>
+
+      <!-- Score -->
+      <rect x="40" y="200" width="1080" height="200" rx="14" fill="#0f1830" stroke="#fbbf24"/>
+      <text x="60" y="228" font-size="11" class="t-mono t-amber">SCORE EACH ELIGIBLE VENDOR · for THIS claim</text>
+
+      <g font-size="13">
+        <text x="60" y="262" class="t-dim">Genex</text>
+        <text x="60" y="282" class="t-mute t-mono">(0.40 · 81) + (0.25 · 76) + (0.15 · 88) + (0.10 · 92) + (0.05 · 78) + (0.05 · 95)</text>
+        <text x="1000" y="282" text-anchor="end" font-size="16" class="t-green" font-weight="700">= 82.6</text>
+
+        <text x="60" y="318" class="t-dim">Paradigm</text>
+        <text x="60" y="338" class="t-mute t-mono">(0.40 · 84) + (0.25 · 70) + (0.15 · 81) + (0.10 · 84) + (0.05 · 81) + (0.05 · 95)</text>
+        <text x="1000" y="338" text-anchor="end" font-size="16" class="t-cyan" font-weight="700">= 81.3</text>
+
+        <text x="60" y="374" class="t-dim">CorVel</text>
+        <text x="60" y="394" class="t-mute t-mono">(0.40 · 77) + (0.25 · 82) + (0.15 · 84) + (0.10 · 78) + (0.05 · 75) + (0.05 · 92)</text>
+        <text x="1000" y="394" text-anchor="end" font-size="16" class="t-cyan" font-weight="700">= 79.4</text>
+      </g>
+
+      <!-- Governance -->
+      <rect x="40" y="420" width="1080" height="100" rx="14" fill="#0f1830" stroke="#f87171"/>
+      <text x="60" y="446" font-size="11" class="t-mono t-red">GOVERNANCE OVERLAY · applied at routing</text>
+      <text x="60" y="470" font-size="13" class="t-dim">· Anti-concentration cap: Genex at 47% of A1-TX volume last 90d — under 50% cap → ok</text>
+      <text x="60" y="490" font-size="13" class="t-dim">· Exploration quota: this is the 17th routing event of 100 this hour → not the 5% slot → normal rank</text>
+      <text x="60" y="510" font-size="13" class="t-dim">· Surveillance check: this is A1 not D2 → no human approval required</text>
+
+      <!-- Output -->
+      <rect x="1140" y="200" width="240" height="320" rx="14" fill="#152141" stroke="#34d399"/>
+      <text x="1160" y="228" font-size="11" class="t-mono t-green">TOP-3 OUTPUT</text>
+      <text x="1160" y="262" font-size="15" font-weight="700" style="fill:#eaf0fa">1. Genex</text>
+      <text x="1160" y="282" font-size="13" class="t-green">82.6</text>
+      <text x="1160" y="300" font-size="11" class="t-mute">$1.8K–$3.5K · RTW 75–95d</text>
+
+      <text x="1160" y="332" font-size="15" font-weight="700" style="fill:#eaf0fa">2. Paradigm</text>
+      <text x="1160" y="352" font-size="13" class="t-cyan">81.3</text>
+      <text x="1160" y="370" font-size="11" class="t-mute">$2.4K–$4.8K · RTW 70–88d</text>
+
+      <text x="1160" y="402" font-size="15" font-weight="700" style="fill:#eaf0fa">3. CorVel</text>
+      <text x="1160" y="422" font-size="13" class="t-cyan">79.4</text>
+      <text x="1160" y="440" font-size="11" class="t-mute">$1.5K–$3.0K · RTW 80–100d</text>
+
+      <text x="1160" y="478" font-size="11" class="t-mono t-amber">→ to adjuster</text>
+      <text x="1160" y="498" font-size="11" class="t-mute">embedded in NCM-referral screen</text>
+
+      <!-- arrows -->
+      <g stroke="#22d3ee" stroke-width="2" fill="none" marker-end="url(#aM)">
+        <line x1="360" y1="100" x2="420" y2="100"/>
+        <line x1="740" y1="100" x2="800" y2="100"/>
+        <path d="M 960 160 C 960 180 580 195 580 200"/>
+        <path d="M 1120 310 C 1130 310 1135 310 1140 310"/>
+      </g>
+    </svg>
+  </div>
+</section>
+
+<!-- 10: Adjuster screen mock -->
+<section class="slide">
+  <div class="reveal r1 header"><span class="num">09 / WHAT THE ADJUSTER SEES</span><h2>Embedded in the workflow at the decision moment</h2></div>
+  <div class="reveal r2 figure">
+    <svg viewBox="0 0 1400 540" xmlns="http://www.w3.org/2000/svg">
+      <!-- claim file frame -->
+      <rect x="40" y="20" width="1320" height="510" rx="12" fill="#0f1830" stroke="#22325c"/>
+      <text x="60" y="50" font-size="11" class="t-mono t-mute">// CLAIM FILE · WC-2026-04-1187 · TX · Garcia, J. · shoulder</text>
+
+      <!-- left: claim summary -->
+      <rect x="60" y="70" width="380" height="440" rx="10" fill="#152141" stroke="#22325c"/>
+      <text x="80" y="98" font-size="11" class="t-mono t-cyan">SNAPSHOT</text>
+      <text x="80" y="124" font-size="13" class="t-dim">DOI: 2026-04-12 · Day 9</text>
+      <text x="80" y="146" font-size="13" class="t-dim">Body part: shoulder · strain</text>
+      <text x="80" y="168" font-size="13" class="t-dim">Lost time: 9 days</text>
+      <text x="80" y="190" font-size="13" class="t-dim">Severity: 0.68</text>
+      <text x="80" y="212" font-size="13" class="t-dim">Litigation prop: 0.31</text>
+      <text x="80" y="234" font-size="13" class="t-dim">Language: en · ZIP 75201</text>
+      <text x="80" y="256" font-size="13" class="t-dim">Modified duty: yes</text>
+      <text x="80" y="278" font-size="13" class="t-dim">Treatment: multi-provider</text>
+      <text x="80" y="300" font-size="13" class="t-amber">Opioid Rx: day 9 (new)</text>
+      <text x="80" y="322" font-size="13" class="t-dim">Reserve: $42,000</text>
+
+      <line x1="80" y1="350" x2="420" y2="350" stroke="#22325c"/>
+      <text x="80" y="375" font-size="11" class="t-mono t-mute">ENGAGED</text>
+      <text x="80" y="398" font-size="13" class="t-dim">F1 Records · ✓ active</text>
+      <text x="80" y="420" font-size="13" class="t-dim">B1 MBR · ✓ active</text>
+      <text x="80" y="442" font-size="13" class="t-dim">B2 PPO · ✓ active</text>
+
+      <!-- right: recommendation panel -->
+      <rect x="460" y="70" width="880" height="440" rx="10" fill="#152141" stroke="#22d3ee" stroke-width="2"/>
+      <text x="480" y="98" font-size="11" class="t-mono t-cyan">// RECOMMENDATION · rec_id 0x7a3f</text>
+      <text x="480" y="125" font-size="18" font-weight="700" style="fill:#eaf0fa">Engage A1 · Telephonic Nurse Case Management</text>
+      <text x="480" y="148" font-size="13" class="t-amber">why: opioid Rx day 9 · multi-provider · severity 0.68 · timing model: NOW</text>
+
+      <!-- candidate rows -->
+      <g>
+        <!-- card 1 -->
+        <rect x="480" y="170" width="840" height="84" rx="8" fill="#1a2750" stroke="#34d399"/>
+        <text x="500" y="194" font-size="11" class="t-mono t-green">RANK 1</text>
+        <text x="500" y="220" font-size="16" font-weight="700" style="fill:#eaf0fa">Genex</text>
+        <text x="500" y="242" font-size="12" class="t-mute">n=412 comparable · refreshed 7d ago</text>
+        <text x="660" y="220" font-size="22" font-weight="800" class="t-green">82.6</text>
+        <text x="720" y="220" font-size="11" class="t-mute t-mono">outcome 81 · cost 76 · speed 88 · fit 92 · sat 78 · compl 95</text>
+        <text x="720" y="238" font-size="12" class="t-dim">est. cost $1.8K–$3.5K · est. RTW 75–95 days</text>
+        <text x="1240" y="220" font-size="11" class="t-cyan t-mono">↵ ACCEPT</text>
+      </g>
+      <g>
+        <rect x="480" y="262" width="840" height="84" rx="8" fill="#1a2750" stroke="#22325c"/>
+        <text x="500" y="286" font-size="11" class="t-mono t-cyan">RANK 2</text>
+        <text x="500" y="312" font-size="16" font-weight="700" style="fill:#eaf0fa">Paradigm</text>
+        <text x="500" y="334" font-size="12" class="t-mute">n=287 · best raw outcome but higher cost</text>
+        <text x="660" y="312" font-size="22" font-weight="800" class="t-cyan">81.3</text>
+        <text x="720" y="312" font-size="11" class="t-mute t-mono">outcome 84 · cost 70 · speed 81 · fit 84 · sat 81 · compl 95</text>
+        <text x="720" y="330" font-size="12" class="t-dim">est. cost $2.4K–$4.8K · est. RTW 70–88 days</text>
+        <text x="1240" y="312" font-size="11" class="t-mute t-mono">S · SWAP</text>
+      </g>
+      <g>
+        <rect x="480" y="354" width="840" height="84" rx="8" fill="#1a2750" stroke="#22325c"/>
+        <text x="500" y="378" font-size="11" class="t-mono t-cyan">RANK 3</text>
+        <text x="500" y="404" font-size="16" font-weight="700" style="fill:#eaf0fa">CorVel</text>
+        <text x="500" y="426" font-size="12" class="t-mute">n=356 · cost leader · lower fit</text>
+        <text x="660" y="404" font-size="22" font-weight="800" class="t-cyan">79.4</text>
+        <text x="720" y="404" font-size="11" class="t-mute t-mono">outcome 77 · cost 82 · speed 84 · fit 78 · sat 75 · compl 92</text>
+        <text x="720" y="422" font-size="12" class="t-dim">est. cost $1.5K–$3.0K · est. RTW 80–100 days</text>
+        <text x="1240" y="404" font-size="11" class="t-mute t-mono">S · SWAP</text>
+      </g>
+
+      <!-- footer actions -->
+      <rect x="480" y="450" width="840" height="44" rx="8" fill="#0f1830" stroke="#22325c"/>
+      <text x="500" y="476" font-size="12" class="t-mono t-mute">↵ ACCEPT rank 1   ·   S SWAP to rank 2/3   ·   R REJECT all (reason required)   ·   D DEFER</text>
+    </svg>
+  </div>
+</section>
+
+<!-- 11: Override learning loop -->
+<section class="slide">
+  <div class="reveal r1 header"><span class="num">10 / OVERRIDES TEACH THE SYSTEM</span><h2>Every swap and reject feeds the learning loop</h2></div>
+  <div class="reveal r2 figure">
+    <svg viewBox="0 0 1400 480" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="aOv2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#a78bfa"/></marker>
+      </defs>
+      <!-- adjuster action -->
+      <rect x="40" y="40" width="300" height="100" rx="12" fill="#152141" stroke="#fbbf24"/>
+      <text x="60" y="68" font-size="11" class="t-mono t-amber">ADJUSTER ACTION</text>
+      <text x="60" y="92" font-size="14" class="t-dim">Swap recommended Genex</text>
+      <text x="60" y="112" font-size="14" class="t-dim">for CorVel</text>
+      <text x="60" y="132" font-size="12" class="t-mute">reason_code = LOCAL_RELATIONSHIP</text>
+
+      <!-- capture -->
+      <rect x="400" y="40" width="300" height="100" rx="12" fill="#152141" stroke="#22d3ee"/>
+      <text x="420" y="68" font-size="11" class="t-mono t-cyan">CAPTURE</text>
+      <text x="420" y="92" font-size="14" class="t-dim">controlled vocabulary</text>
+      <text x="420" y="112" font-size="14" class="t-dim">+ free text + adjuster + time</text>
+      <text x="420" y="132" font-size="12" class="t-mute">→ AdjusterSwapped event</text>
+
+      <!-- aggregate -->
+      <rect x="760" y="40" width="300" height="100" rx="12" fill="#152141" stroke="#a78bfa"/>
+      <text x="780" y="68" font-size="11" class="t-mono t-purp">AGGREGATE</text>
+      <text x="780" y="92" font-size="14" class="t-dim">monthly: cluster overrides</text>
+      <text x="780" y="112" font-size="14" class="t-dim">by service · adjuster · jurisdiction</text>
+      <text x="780" y="132" font-size="12" class="t-mute">→ find systematic patterns</text>
+
+      <!-- review -->
+      <rect x="1120" y="40" width="240" height="100" rx="12" fill="#152141" stroke="#34d399"/>
+      <text x="1140" y="68" font-size="11" class="t-mono t-green">REVIEW</text>
+      <text x="1140" y="92" font-size="14" class="t-dim">monthly review</text>
+      <text x="1140" y="112" font-size="14" class="t-dim">model team + ops</text>
+
+      <!-- arrows -->
+      <g stroke="#a78bfa" stroke-width="2" fill="none" marker-end="url(#aOv2)">
+        <line x1="340" y1="90" x2="400" y2="90"/>
+        <line x1="700" y1="90" x2="760" y2="90"/>
+        <line x1="1060" y1="90" x2="1120" y2="90"/>
+      </g>
+
+      <!-- example finding -->
+      <rect x="40" y="180" width="1320" height="280" rx="14" fill="#0f1830" stroke="#22325c"/>
+      <text x="60" y="208" font-size="11" class="t-mono t-cyan">// FOR EXAMPLE — what monthly review can surface</text>
+
+      <text x="60" y="242" font-size="14" font-weight="700" style="fill:#eaf0fa">Pattern detected: Tampa adjusters swap recommended NCM vendor B for vendor D on 73% of shoulder claims.</text>
+
+      <g font-size="13" class="t-dim">
+        <text x="60" y="278">Three possible explanations:</text>
+        <text x="80" y="304" class="t-amber">1. Local knowledge model is missing</text>
+        <text x="120" y="324">→ vendor D has a specialty shoulder team in Tampa not yet captured in features · add it.</text>
+        <text x="80" y="350" class="t-amber">2. Model trained nationally; Tampa is different</text>
+        <text x="120" y="370">→ add venue-level interaction features · retrain.</text>
+        <text x="80" y="396" class="t-amber">3. Adjuster habit · vendor B is fine</text>
+        <text x="120" y="416">→ training opportunity for the Tampa team · share comparable outcomes.</text>
+      </g>
+
+      <text x="60" y="446" font-size="13" class="t-green" font-weight="600">The override rate is a feature of the system, not a bug. It's how the model learns.</text>
+    </svg>
+  </div>
+</section>
+
+<!-- 12: Attribution loop -->
+<section class="slide">
+  <div class="reveal r1 header"><span class="num">11 / DID IT WORK?</span><h2>The 5% holdout proves the savings are real</h2></div>
+  <div class="reveal r2 figure">
+    <svg viewBox="0 0 1400 480" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="aH" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#22d3ee"/></marker>
+      </defs>
+      <!-- claim universe -->
+      <rect x="40" y="40" width="280" height="100" rx="12" fill="#152141" stroke="#22d3ee"/>
+      <text x="60" y="68" font-size="11" class="t-mono t-cyan">INCOMING CLAIMS</text>
+      <text x="60" y="98" font-size="22" font-weight="800" style="fill:#eaf0fa">~12,000 / qtr</text>
+      <text x="60" y="124" font-size="12" class="t-mute">on a $500M book</text>
+
+      <!-- randomizer -->
+      <rect x="380" y="40" width="220" height="100" rx="12" fill="#152141" stroke="#fbbf24"/>
+      <text x="400" y="68" font-size="11" class="t-mono t-amber">RANDOMIZER</text>
+      <text x="400" y="92" font-size="14" class="t-dim">stratified by</text>
+      <text x="400" y="112" font-size="14" class="t-dim">severity · jurisdiction</text>
+      <text x="400" y="132" font-size="12" class="t-mute">stable assignment</text>
+
+      <!-- treatment 95% -->
+      <rect x="660" y="40" width="320" height="100" rx="12" fill="#152141" stroke="#34d399"/>
+      <text x="680" y="68" font-size="11" class="t-mono t-green">TREATMENT · 95%</text>
+      <text x="680" y="96" font-size="20" font-weight="800" style="fill:#eaf0fa">~11,400 claims</text>
+      <text x="680" y="120" font-size="13" class="t-dim">layer recommendations active</text>
+      <text x="680" y="135" font-size="12" class="t-mute">adjusters use the system</text>
+
+      <!-- holdout 5% -->
+      <rect x="1020" y="40" width="320" height="100" rx="12" fill="#152141" stroke="#a78bfa"/>
+      <text x="1040" y="68" font-size="11" class="t-mono t-purp">HOLDOUT · 5%</text>
+      <text x="1040" y="96" font-size="20" font-weight="800" style="fill:#eaf0fa">~600 claims</text>
+      <text x="1040" y="120" font-size="13" class="t-dim">layer suppressed for 6 months</text>
+      <text x="1040" y="135" font-size="12" class="t-mute">adjusters work without it</text>
+
+      <!-- 6-month wait -->
+      <rect x="40" y="180" width="1300" height="60" rx="10" fill="#0f1830" stroke="#fbbf24" stroke-opacity=".4"/>
+      <text x="700" y="218" text-anchor="middle" font-size="14" class="t-amber">6 MONTHS PASS · claims develop · costs accrue · outcomes observed</text>
+
+      <!-- propensity match -->
+      <rect x="40" y="280" width="1300" height="100" rx="12" fill="#152141" stroke="#22d3ee"/>
+      <text x="60" y="308" font-size="11" class="t-mono t-cyan">PROPENSITY-MATCHED ESTIMATOR</text>
+      <text x="60" y="332" font-size="14" class="t-dim">For each holdout claim, find the closest treatment claim — matching on severity at FNOL, body part,</text>
+      <text x="60" y="350" font-size="14" class="t-dim">jurisdiction, venue, age band, litigation propensity. Compare total cost &amp; outcomes.</text>
+      <text x="60" y="372" font-size="13" class="t-mute">→ unbiased estimate of the layer's per-claim value</text>
+
+      <!-- output -->
+      <rect x="40" y="410" width="640" height="60" rx="10" fill="#152141" stroke="#34d399"/>
+      <text x="60" y="438" font-size="11" class="t-mono t-green">→ FINANCE</text>
+      <text x="60" y="458" font-size="14" class="t-dim">quarterly counterfactual savings report</text>
+
+      <rect x="720" y="410" width="620" height="60" rx="10" fill="#152141" stroke="#22d3ee"/>
+      <text x="740" y="438" font-size="11" class="t-mono t-cyan">→ BOARD / SPONSOR</text>
+      <text x="740" y="458" font-size="14" class="t-dim">the defensible number for "did the program work"</text>
+
+      <!-- arrows -->
+      <g stroke="#22d3ee" stroke-width="2" fill="none" marker-end="url(#aH)">
+        <line x1="320" y1="90" x2="380" y2="90"/>
+        <line x1="600" y1="90" x2="660" y2="90"/>
+        <path d="M 600 110 C 700 110 900 110 1020 110"/>
+        <line x1="820" y1="140" x2="820" y2="180"/>
+        <line x1="1180" y1="140" x2="1180" y2="180"/>
+        <line x1="700" y1="240" x2="700" y2="280"/>
+      </g>
+    </svg>
+  </div>
+</section>
+
+<!-- 13: Three rules -->
+<section class="slide">
+  <div class="reveal r1 header"><span class="num">12 / RULES OF THE ROAD</span><h2>The three rules earned from prior rollouts</h2></div>
+  <div class="reveal r2" style="margin-top:30px">
+    <div class="grid grid-3" style="gap:22px">
+      <div class="card" style="border-color:rgba(34,211,238,.5);padding:30px">
+        <div class="num">RULE 1</div>
+        <h3 style="font-size:24px;margin-bottom:14px">Don't take the decision.<br/>Improve the decision.</h3>
+        <p style="font-size:15px;line-height:1.6">The layer never says "use this vendor." It presents <strong>top-3 with rationale</strong>. The adjuster picks. Authority stays with the licensed claims professional.</p>
+      </div>
+      <div class="card" style="border-color:rgba(245,158,11,.5);padding:30px">
+        <div class="num" style="color:var(--amber)">RULE 2</div>
+        <h3 style="font-size:24px;margin-bottom:14px">Show your work.</h3>
+        <p style="font-size:15px;line-height:1.6">Every factor visible. Every comparable shown. Every override pattern surfaced. <strong>Adjusters trust what they can audit</strong> — and so do regulators.</p>
+      </div>
+      <div class="card" style="border-color:rgba(52,211,153,.5);padding:30px">
+        <div class="num" style="color:var(--green)">RULE 3</div>
+        <h3 style="font-size:24px;margin-bottom:14px">Make override frictionless.</h3>
+        <p style="font-size:15px;line-height:1.6">Two clicks. Free-text allowed. <strong>Reason coded and trended</strong>. Not used for individual performance reviews in year one. Adoption beats accuracy in year one.</p>
+      </div>
+    </div>
+  </div>
+  <p class="reveal r3 lead" style="margin-top:48px;text-align:center;max-width:1100px;margin-left:auto;margin-right:auto">"A platform that makes adjusters feel surveilled will be sabotaged." — Dr. James Kim, panel transcript</p>
+</section>
+
+<!-- 14: Before / after -->
+<section class="slide">
+  <div class="reveal r1 header"><span class="num">13 / BEFORE / AFTER</span><h2>An adjuster's morning — same caseload, two different worlds</h2></div>
+  <div class="reveal r2" style="margin-top:24px;display:grid;grid-template-columns:1fr 1fr;gap:24px;flex:1">
+    <div class="card" style="border-color:rgba(248,113,113,.5);padding:24px">
+      <div class="num" style="color:var(--red)">BEFORE · today</div>
+      <h3 style="font-size:22px;margin-bottom:18px">Memory and habit</h3>
+      <ul style="list-style:none;padding:0">
+        <li style="padding:10px 0;border-bottom:1px dashed var(--line-soft);color:var(--text-dim);font-size:15px">⏱ <strong>0:00</strong> · open desk · 47 unread items</li>
+        <li style="padding:10px 0;border-bottom:1px dashed var(--line-soft);color:var(--text-dim);font-size:15px">⏱ <strong>0:30</strong> · triage the queue manually</li>
+        <li style="padding:10px 0;border-bottom:1px dashed var(--line-soft);color:var(--text-dim);font-size:15px">⏱ <strong>1:15</strong> · decide nurse is needed on three files · pick vendor from habit · email referral</li>
+        <li style="padding:10px 0;border-bottom:1px dashed var(--line-soft);color:var(--text-dim);font-size:15px">⏱ <strong>2:30</strong> · decide one file needs SIU · call the usual investigator · no comparison</li>
+        <li style="padding:10px 0;border-bottom:1px dashed var(--line-soft);color:var(--text-dim);font-size:15px">⏱ <strong>3:45</strong> · realize a 60-day-old file should have had nurse on day 7 · too late</li>
+        <li style="padding:10px 0;color:var(--red);font-size:15px"><strong>Outcome:</strong> ~15 service decisions/day · zero comparison data · zero learning loop</li>
+      </ul>
+    </div>
+    <div class="card" style="border-color:rgba(52,211,153,.5);padding:24px">
+      <div class="num" style="color:var(--green)">AFTER · with the layer</div>
+      <h3 style="font-size:22px;margin-bottom:18px">Recommended defaults</h3>
+      <ul style="list-style:none;padding:0">
+        <li style="padding:10px 0;border-bottom:1px dashed var(--line-soft);color:var(--text-dim);font-size:15px">⏱ <strong>0:00</strong> · open desk · queue pre-sorted by recommended action</li>
+        <li style="padding:10px 0;border-bottom:1px dashed var(--line-soft);color:var(--text-dim);font-size:15px">⏱ <strong>0:10</strong> · review 8 pending recommendations · top-3 vendors visible · 6 accepted in &lt;2 minutes</li>
+        <li style="padding:10px 0;border-bottom:1px dashed var(--line-soft);color:var(--text-dim);font-size:15px">⏱ <strong>0:25</strong> · 2 swaps with reason — local knowledge captured</li>
+        <li style="padding:10px 0;border-bottom:1px dashed var(--line-soft);color:var(--text-dim);font-size:15px">⏱ <strong>0:30</strong> · proactive alert: "this file is drifting · day 55 · litigation propensity rising · recommend D6 counsel"</li>
+        <li style="padding:10px 0;border-bottom:1px dashed var(--line-soft);color:var(--text-dim);font-size:15px">⏱ <strong>0:35</strong> · review surveillance approval queue — sign off after compliance review</li>
+        <li style="padding:10px 0;color:var(--green);font-size:15px"><strong>Outcome:</strong> ~30 service decisions/day · all comparable · all auditable · all feeding the loop</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 15: One-picture summary -->
+<section class="slide">
+  <div class="reveal r1 kicker">// the whole story · one picture</div>
+  <h1 class="reveal r2" style="font-size:clamp(34px,4.6vw,58px);max-width:1300px;margin-bottom:24px">The carrier that picks the<br/><span class="em">right service · right vendor · right moment</span><br/>wins the expense ratio.</h1>
+  <div class="reveal r3" style="display:flex;gap:14px;flex-wrap:wrap;margin-top:20px">
+    <span class="pill">36 services</span>
+    <span class="pill">6 families</span>
+    <span class="pill amber">8 eligibility gates</span>
+    <span class="pill amber">6 scoring factors</span>
+    <span class="pill green">3 governance rules</span>
+    <span class="pill green">4 learning loops</span>
+    <span class="pill purp">P50 &lt; 2 seconds</span>
+    <span class="pill purp">5% holdout for attribution</span>
+    <span class="pill red">no auto-denial · ever</span>
+    <span class="pill red">surveillance requires human approval</span>
+  </div>
+  <div class="reveal r4" style="margin-top:48px;padding:28px;background:linear-gradient(135deg,rgba(34,211,238,.10),rgba(245,158,11,.06));border:1px solid rgba(34,211,238,.3);border-radius:14px;max-width:1200px">
+    <h3 style="font-size:24px;margin-bottom:10px">What this layer commits at steady state</h3>
+    <p style="font-size:16px;color:var(--text-dim);line-height:1.6"><strong class="t-cyan" style="color:var(--cyan)">0.8–1.2 LAE points</strong> — roughly half of the Session-I program target. <strong class="t-cyan" style="color:var(--cyan)">$4–6M annual run-rate</strong> on a $500M book. <strong class="t-cyan" style="color:var(--cyan)">P50 &lt; 2 seconds</strong> adjuster experience. <strong class="t-cyan" style="color:var(--cyan)">Audit-ready</strong> on every recommendation. <strong class="t-cyan" style="color:var(--cyan)">Quarterly</strong> counterfactual to finance.</p>
+  </div>
+  <p class="reveal r5 sub" style="margin-top:32px">Companion documents: <span class="mono">triage_panel/PANEL_TRANSCRIPT.md</span> · <span class="mono">SERVICE_CATALOG.md</span> · <span class="mono">VENDOR_CATALOG.md</span> · <span class="mono">REQUIREMENTS_REGISTER.md</span></p>
+</section>
+
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const total = slides.length;
+  let idx = 0;
+  document.getElementById('slideTotal').textContent = total;
+  function show(n){
+    n = Math.max(0, Math.min(total-1, n));
+    slides[idx].classList.remove('active');
+    idx = n;
+    slides[idx].classList.add('active');
+    document.getElementById('slideNum').textContent = idx+1;
+    document.getElementById('progress').style.width = ((idx+1)/total*100)+'%';
+  }
+  document.addEventListener('keydown', e=>{
+    if(e.key==='ArrowRight' || e.key===' ' || e.key==='PageDown') show(idx+1);
+    else if(e.key==='ArrowLeft' || e.key==='PageUp') show(idx-1);
+    else if(e.key==='Home') show(0);
+    else if(e.key==='End') show(total-1);
+    else if(e.key==='f' || e.key==='F'){
+      if(!document.fullscreenElement) document.documentElement.requestFullscreen();
+      else document.exitFullscreen();
+    }
+  });
+  document.addEventListener('click', e=>{
+    if(e.target.closest('.chrome') || e.target.closest('.navhint')) return;
+    const r = window.innerWidth;
+    if(e.clientX > r/2) show(idx+1);
+    else show(idx-1);
+  });
+  show(0);
+</script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+# Decisions Log — Session II (Triage & Vendor Match Layer)
+
+| ID | Decision | Rationale | Owner | Dissent |
+|---|---|---|---|---|
+| D-T1 | Triage & Vendor Match is one coherent capability spanning Session-I Domains 2 (Triage) and 5 (Vendor Orchestration) | Service identification and vendor selection share data, models, audit, and the adjuster touchpoint | Aisha | None |
+| D-T2 | Service catalog = 36 services across 6 families (Medical Direction, Medical Spend, RTW & Indemnity, Investigation & Defense, Resolution & Settlement, Records & Admin) | Reflects the actual service surface of a mid-size monoline WC operation | Rob, Sandy | None |
+| D-T3 | Service identification is hybrid: deterministic rules + multi-label classifier + timing model | Some services (interpreter, MSA, Sec 111) are policy not prediction; others are probabilistic; timing is its own problem | James | None |
+| D-T4 | Vendor eligibility gated by 8 hard criteria (licensure, E&O, BAA, compliance attestations, no regulatory action, infosec, rate card filed, capacity disclosed) | Eligibility is binary; cannot conflate with performance | Sandy, Linda | None |
+| D-T5 | Vendor scoring: 6 weighted factors — Outcome 40% / Cost 25% / Speed 15% / Specialty fit 10% / Adjuster sat 5% / Compliance 5% — with causal correction (propensity weighting) and 60/40 6-month/7-18-month decay | Outcomes dominate; cost matters but not at outcome's expense; corrects selection bias from adjuster routing | James, Priya | None |
+| D-T6 | Anti-concentration cap: max 50% share per vendor per service | Vendor capacity, concentration risk, and rate-card leverage all break with single-source | Sandy | None |
+| D-T7 | Exploration quota: 5% of volume routed to ranks 4–5 to refresh cold-vendor data | Without exploration the leaderboard freezes and the layer cannot self-correct | James | None |
+| D-T8 | Minimum sample of 30 closed engagements before a vendor score is published as a rank | Below 30, the score is noise; we publish a flag instead | Priya, James | None |
+| D-T9 | Surveillance (D2) requires explicit human approval before vendor engagement; recommendation is advisory only | Privacy / bias / state-law risk material; surveillance is not a default action | Linda, Sandy | None |
+| D-T10 | Every recommendation persists with snapshot inputs, model versions, factor weights, score outputs, and downstream outcome | Audit, reproducibility, regulator readiness | Linda, Priya | None |
+| D-T11 | Override reasons are captured via controlled vocabulary + free text + trended; not used for individual adjuster performance reviews in first 12 months | Adoption depends on adjusters trusting the system, not feeling surveilled | Sandy, Rob | Daniel preferred earlier accountability; deferred for first year |
+| D-T12 | 5% randomized holdout cohort for 6 months at rollout to enable counterfactual savings attribution | The board will ask whether the layer worked; without holdout we cannot answer defensibly | Priya, James, Sandy | Daniel notes the lost short-term value; accepted as necessary |
+| D-T13 | Build / Buy split: Buy MBR engine, PBM, PPO/MPN data, ISO; Build Service Identifier, Vendor Master + Scorecard, Recommendation Composer, Attribution engine | No vendor product covers the integrated scorecard well; commodity layers should be bought | Aisha | None |
+| D-T14 | Cost envelope $4–6M of the $18–25M program is allocated to this layer. Phase-1 ships rules + v1 classifier + scorecard MVP; Phase-2 ships full scoring + learning loop | Largely a rebudgeting of Session-I Domain 2 + 5 spend, not an addition | Aisha | Treat as ROM only |
+| D-T15 | Outcome attribution published quarterly to finance using propensity-matched estimator on the holdout | Without finance buy-in the savings number is contested forever | Priya | None |
+| D-T16 | Vendor scoring methodology published to vendors annually — sufficient detail to self-improve, insufficient to game | Transparency builds the vendor ecosystem; opacity invites manipulation | Sandy, Linda | None |
+| D-T17 | Bias testing performed on recommendation outputs (vendor steering by claimant demographic), not only on input model | Disparate impact on vendor routing is a real regulatory exposure that input-side testing alone misses | Linda | None |
+| D-T18 | Top-5 highest-spend service categories prioritized in Phase-1 build: MBR (B1), Defense Counsel (D6), TCM/FCM (A1/A2), IME (A6), Surveillance/SIU (D1/D2) | Concentrates effort where leakage and outcome leverage are largest | Sandy, Rob | None |

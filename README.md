@@ -18,6 +18,21 @@ Open any file directly in a browser. **Navigation:** `←` `→` arrow keys (or 
 - **[`OPEN_QUESTIONS.md`](panel/OPEN_QUESTIONS.md)** — 8 questions parked with owners and due-dates.
 - **[`GLOSSARY.md`](panel/GLOSSARY.md)** — plain-language definitions of every WC/regulatory/actuarial term used.
 
+### `triage_decks/` — Session-II decks (Claims Triage & Vendor Match Layer)
+Brand-new panel session that drills Domains 2 (Triage) + 5 (Vendor Orchestration) into one operational capability: a per-claim recommendation of *which services to engage* and *which vendor to engage them with*.
+- **[`executive_brief.html`](triage_decks/executive_brief.html)** — 15-slide deck for the Executive Sponsor Group. The capability, the prize (0.8–1.2 LAE points · ~50% of the program target), the guardrails, the decision asked.
+- **[`architecture_deck.html`](triage_decks/architecture_deck.html)** — 15-slide engineering deck. System context, four components, canonical data model, event catalog, NFRs, build sequence, open design questions.
+- **[`match_flow.html`](triage_decks/match_flow.html)** — 15-slide visual walkthrough. One-picture overview, the 5-step recipe, three scenarios (routine · catastrophic · SIU red-flag), trigger map, scorecard visualized, adjuster screen mock, learning + attribution loops.
+
+### `triage_panel/` — Session-II panel artifacts
+- **[`PANEL_TRANSCRIPT.md`](triage_panel/PANEL_TRANSCRIPT.md)** — Session-II transcript: eight panelists, ten sections, captured verbatim.
+- **[`DECISIONS_LOG.md`](triage_panel/DECISIONS_LOG.md)** — 18 decisions taken (D-T1 → D-T18) with rationale and dissent.
+- **[`REQUIREMENTS_REGISTER.md`](triage_panel/REQUIREMENTS_REGISTER.md)** — functional + NFR requirements grouped by theme (catalog, triggers, pool, scoring, match, UX, learning loop, integration, compliance, risk).
+- **[`SERVICE_CATALOG.md`](triage_panel/SERVICE_CATALOG.md)** — 36 services across 6 families with triggers, timing, unit-cost bands, dependencies, and a trigger→service quick map.
+- **[`VENDOR_CATALOG.md`](triage_panel/VENDOR_CATALOG.md)** — 8-gate eligibility schema, 6-factor scoring schema with causal correction & decay, runtime match flow, and representative carrier-typical vendor pools per service.
+- **[`OPEN_QUESTIONS.md`](triage_panel/OPEN_QUESTIONS.md)** — 10 items parked with owners and due dates.
+- **[`GLOSSARY.md`](triage_panel/GLOSSARY.md)** — additions to the Session-I glossary (composite score, propensity weighting, exploration quota, holdout cohort, etc.).
+
 ### `agents/` — expert persona definitions
 Nine specialized experts plus the meta-agents that ran the session:
 1. [`01_moderator.md`](agents/01_moderator.md) — Dr. Ava Chen, Panel Moderator & Facilitator
