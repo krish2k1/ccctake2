@@ -1,0 +1,1075 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Developer Build Guide — Claims Triage & Vendor Match Layer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a1020;
+    --bg-2:#0f1830;
+    --panel:#152141;
+    --panel-2:#1a2750;
+    --line:#22325c;
+    --line-soft:#1d2a4d;
+    --text:#eaf0fa;
+    --text-dim:#9fb0d0;
+    --text-mute:#6a7da3;
+    --cyan:#22d3ee;
+    --teal:#5eead4;
+    --purple:#a78bfa;
+    --amber:#fbbf24;
+    --orange:#fb923c;
+    --green:#34d399;
+    --red:#f87171;
+    --pink:#f472b6;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+  body::before{
+    content:"";position:fixed;inset:0;
+    background-image:
+      radial-gradient(900px 600px at 90% -10%, rgba(34,211,238,0.10), transparent 60%),
+      radial-gradient(700px 500px at -10% 30%, rgba(167,139,250,0.08), transparent 60%),
+      radial-gradient(600px 400px at 50% 110%, rgba(52,211,153,0.06), transparent 60%);
+    pointer-events:none;
+  }
+  .deck{position:relative;width:100vw;height:100vh}
+  .slide{
+    position:absolute;inset:0;display:none;flex-direction:column;
+    padding:5vh 5vw;opacity:0;transform:translateY(20px);
+    transition:opacity .55s ease, transform .55s ease;
+    overflow:hidden;
+  }
+  .slide.active{display:flex;opacity:1;transform:translateY(0)}
+  .slide.active .reveal{animation:revealUp .55s ease both}
+  .slide.active .r1{animation-delay:.05s}
+  .slide.active .r2{animation-delay:.16s}
+  .slide.active .r3{animation-delay:.27s}
+  .slide.active .r4{animation-delay:.38s}
+  .slide.active .r5{animation-delay:.49s}
+  .slide.active .r6{animation-delay:.60s}
+  @keyframes revealUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+
+  .chrome{position:fixed;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:14px 24px;font-size:11px;color:var(--text-dim);letter-spacing:.04em;text-transform:uppercase;z-index:50}
+  .chrome.top{top:0}
+  .chrome.bot{bottom:0}
+  .brand{display:flex;align-items:center;gap:10px;font-family:'JetBrains Mono',monospace}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 12px var(--green)}
+  .progress{position:fixed;top:0;left:0;height:3px;background:linear-gradient(90deg,var(--green),var(--cyan),var(--amber));transition:width .5s ease;z-index:60}
+
+  .kicker{color:var(--green);font-size:11px;letter-spacing:.22em;text-transform:uppercase;font-weight:600;margin-bottom:8px;font-family:'JetBrains Mono',monospace}
+  h1{font-size:clamp(36px,5vw,68px);font-weight:800;line-height:1.05;letter-spacing:-.02em}
+  h1 .em{background:linear-gradient(135deg,var(--green),var(--cyan));-webkit-background-clip:text;background-clip:text;color:transparent}
+  h2{font-size:clamp(22px,2.8vw,36px);font-weight:700;line-height:1.1;letter-spacing:-.015em;margin-bottom:6px}
+  h3{font-size:clamp(14px,1.3vw,18px);font-weight:600;color:var(--text);margin-bottom:4px}
+  p,li{font-size:clamp(13px,1.05vw,15px);line-height:1.5;color:var(--text-dim)}
+  .lead{font-size:clamp(17px,1.4vw,22px);color:var(--text);line-height:1.5}
+  .sub{font-size:clamp(13px,1.05vw,15px);color:var(--text-mute);margin-top:4px}
+  strong{color:var(--text);font-weight:600}
+  .mono{font-family:'JetBrains Mono',monospace}
+  .cyan{color:var(--cyan)} .amber{color:var(--amber)} .green{color:var(--green)} .purp{color:var(--purple)} .red{color:var(--red)} .pink{color:var(--pink)}
+
+  .pill{display:inline-flex;align-items:center;gap:6px;font-size:11px;padding:3px 9px;border-radius:999px;background:rgba(52,211,153,.10);border:1px solid rgba(52,211,153,.35);color:var(--green);font-weight:500;font-family:'JetBrains Mono',monospace;letter-spacing:.04em}
+  .pill.cyan{background:rgba(34,211,238,.10);border-color:rgba(34,211,238,.35);color:var(--cyan)}
+  .pill.amber{background:rgba(251,191,36,.10);border-color:rgba(251,191,36,.35);color:var(--amber)}
+  .pill.purp{background:rgba(167,139,250,.10);border-color:rgba(167,139,250,.35);color:var(--purple)}
+  .pill.red{background:rgba(248,113,113,.10);border-color:rgba(248,113,113,.35);color:var(--red)}
+
+  .header{display:flex;flex-direction:column;gap:4px;margin-bottom:14px}
+  .header .num{font-family:'JetBrains Mono',monospace;color:var(--green);font-size:11px;letter-spacing:.16em}
+
+  .grid{display:grid;gap:14px}
+  .grid-2{grid-template-columns:1fr 1fr}
+  .grid-3{grid-template-columns:repeat(3,1fr)}
+  .grid-4{grid-template-columns:repeat(4,1fr)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;transition:.3s}
+  .card:hover{border-color:var(--green);transform:translateY(-2px)}
+  .card .num{font-family:'JetBrains Mono',monospace;color:var(--green);font-size:11px;letter-spacing:.1em;margin-bottom:6px}
+  .card.cyan:hover{border-color:var(--cyan)} .card.cyan .num{color:var(--cyan)}
+  .card.amber:hover{border-color:var(--amber)} .card.amber .num{color:var(--amber)}
+  .card.purp:hover{border-color:var(--purple)} .card.purp .num{color:var(--purple)}
+  .card.red:hover{border-color:var(--red)} .card.red .num{color:var(--red)}
+
+  /* analogy callout */
+  .analogy{background:linear-gradient(135deg,rgba(52,211,153,.10),rgba(34,211,238,.06));border:1px solid rgba(52,211,153,.35);border-radius:12px;padding:18px 22px;margin:12px 0;position:relative}
+  .analogy::before{content:"💡";position:absolute;left:-12px;top:-12px;width:32px;height:32px;background:var(--bg);border:1px solid rgba(52,211,153,.5);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px}
+  .analogy strong{color:var(--green)}
+  .analogy p{color:var(--text);font-size:15px;line-height:1.55}
+
+  /* translation callout */
+  .translation{background:rgba(251,191,36,.07);border-left:3px solid var(--amber);padding:10px 16px;margin:8px 0;border-radius:0 8px 8px 0}
+  .translation .what{font-family:'JetBrains Mono',monospace;color:var(--amber);font-size:12px;font-weight:600}
+  .translation .means{color:var(--text-dim);font-size:13px;margin-top:3px}
+
+  pre.code{background:var(--bg-2);border:1px solid var(--line);border-radius:10px;padding:14px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.55;color:var(--text-dim);overflow:auto;max-height:62vh}
+  pre.code .c{color:var(--text-mute);font-style:italic}
+  pre.code .k{color:var(--cyan)}
+  pre.code .s{color:var(--amber)}
+  pre.code .n{color:var(--green)}
+  pre.code .p{color:var(--purple)}
+  pre.code .e{color:var(--pink)}
+  pre.code .b{color:var(--red)}
+
+  table.tight{width:100%;border-collapse:collapse;font-size:13px}
+  table.tight th,table.tight td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--line-soft);vertical-align:top}
+  table.tight th{color:var(--text-mute);font-weight:600;text-transform:uppercase;letter-spacing:.06em;font-size:11px;font-family:'JetBrains Mono',monospace}
+  table.tight td{color:var(--text-dim)}
+  table.tight td.k{color:var(--text);font-family:'JetBrains Mono',monospace;font-size:12px;white-space:nowrap}
+  table.tight td.v{color:var(--text);font-weight:500}
+  table.tight tr:hover td{background:rgba(52,211,153,.04)}
+
+  .navhint{position:fixed;right:24px;bottom:18px;font-size:11px;color:var(--text-dim);letter-spacing:.1em;text-transform:uppercase;display:flex;gap:8px;align-items:center;z-index:50}
+  kbd{font-family:'JetBrains Mono',monospace;font-size:11px;padding:3px 7px;border:1px solid var(--line);border-radius:5px;background:var(--bg-2);color:var(--text)}
+
+  .title-slide{justify-content:center;align-items:flex-start}
+  .title-slide .meta{display:flex;gap:24px;margin-top:32px;flex-wrap:wrap}
+  .title-slide .meta div{display:flex;flex-direction:column}
+  .title-slide .meta .mk{font-size:10px;letter-spacing:.18em;color:var(--text-dim);text-transform:uppercase}
+  .title-slide .meta .mv{font-size:15px;color:var(--text);font-weight:500;margin-top:3px}
+
+  ul.steps{list-style:none;padding:0;counter-reset:s}
+  ul.steps li{position:relative;padding:10px 0 10px 44px;font-size:14px;color:var(--text-dim);border-bottom:1px dashed var(--line-soft);counter-increment:s}
+  ul.steps li::before{content:counter(s);position:absolute;left:0;top:10px;width:28px;height:28px;border-radius:8px;background:var(--bg-2);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--green);font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600}
+  ul.steps li strong{color:var(--text)}
+  ul.steps li:last-child{border-bottom:none}
+
+  ul.bare{list-style:none;padding:0}
+  ul.bare li{font-size:14px;color:var(--text-dim);padding:5px 0}
+  ul.bare li strong{color:var(--text)}
+
+  .figure{flex:1;display:flex;align-items:center;justify-content:center;margin-top:8px;min-height:0}
+  .figure svg{max-width:100%;max-height:62vh;width:100%;height:auto}
+</style>
+</head>
+<body>
+
+<div class="progress" id="progress" style="width:0%"></div>
+<div class="chrome top">
+  <div class="brand"><span class="dot"></span><span>BUILD_GUIDE · for_developers · no_insurance_background_needed</span></div>
+  <div>Companion to architecture_deck.html</div>
+</div>
+<div class="chrome bot">
+  <div>2026-05-27 · written so you can sit down and write code</div>
+  <div><span id="slideNum">1</span> / <span id="slideTotal">18</span></div>
+</div>
+<div class="navhint"><kbd>←</kbd><kbd>→</kbd> <span>navigate</span> <kbd>F</kbd> <span>fullscreen</span></div>
+
+<div class="deck" id="deck">
+
+<!-- 1: Title -->
+<section class="slide title-slide active">
+  <div class="reveal r1 kicker">// build this system · the developer's guide</div>
+  <h1 class="reveal r2">You don't need to<br/>know <span class="em">insurance</span>.<br/>You need to know<br/><span class="em">these 18 slides</span>.</h1>
+  <p class="reveal r3 lead" style="margin-top:24px;max-width:1050px">A from-scratch guide for engineers who have never written a line of insurance code. By the end you can map the business problem to a service architecture and start building Phase 1.</p>
+  <div class="meta reveal r4">
+    <div><span class="mk">Audience</span><span class="mv">Backend / ML engineers · zero domain background</span></div>
+    <div><span class="mk">Reading time</span><span class="mv">~15 minutes</span></div>
+    <div><span class="mk">After this you can</span><span class="mv">Open architecture_deck.html and it makes sense</span></div>
+    <div><span class="mk">Companion docs</span><span class="mv">SERVICE_CATALOG.md · VENDOR_CATALOG.md</span></div>
+  </div>
+</section>
+
+<!-- 2: The problem in plain English -->
+<section class="slide">
+  <div class="reveal r1 header"><span class="num">01 / THE PROBLEM</span><h2>Forget insurance. Here's what we're building.</h2></div>
+  <div class="reveal r2" style="margin-top:14px;flex:1;display:flex;flex-direction:column;justify-content:center">
+    <div class="analogy">
+      <p><strong>Think Spotify "Discover Weekly" — but for claims handling.</strong></p>
+      <p style="margin-top:8px">Spotify picks <em>which songs</em> you might like, then for each pick decides <em>which playlist</em> to surface it on. We pick <em>which services</em> a claim needs, then for each service pick <em>which vendor</em> performs it best for this specific case.</p>
+    </div>
+    <p class="lead" style="margin-top:30px;max-width:1100px">A "claims adjuster" manages 150 active cases. For every case they decide:</p>
+    <div class="grid grid-2" style="margin-top:14px">
+      <div class="card cyan">
+        <div class="num cyan">DECISION 1</div>
+        <h3 style="font-size:18px">Which services to engage</h3>
+        <p>Out of 36 possible services (nurse, lawyer, investigator, translator, etc.) — what does <em>this</em> case need <em>right now</em>?</p>
+      </div>
+      <div class="card">
+        <div class="num">DECISION 2</div>
+        <h3 style="font-size:18px">Which vendor to use</h3>
+        <p>For each service, the company has 3–5 approved vendors (think: 4 different nursing companies). Pick the best fit for this case.</p>
+      </div>
+    </div>
+    <div class="analogy" style="margin-top:24px;background:linear-gradient(135deg,rgba(248,113,113,.10),rgba(245,158,11,.06));border-color:rgba(248,113,113,.35)">
+      <p><strong style="color:var(--red)">Today, both decisions are made from memory and habit.</strong> No comparison data. No learning from outcomes. The same case is handled three different ways by three different adjusters. <strong style="color:var(--red)">We're building the recommendation engine.</strong></p>
+    </div>
+  </div>
+</section>
+
+<!-- 3: WC in 60 seconds -->
+<section class="slide">
+  <div class="reveal r1 header"><span class="num">02 / THE BUSINESS · IN 60 SECONDS</span><h2>Workers' comp · the only domain knowledge you need</h2></div>
+  <div class="reveal r2 figure">
+    <svg viewBox="0 0 1400 460" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="aB" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#34d399"/></marker>
+      </defs>
+      <!-- actors -->
+      <g>
+        <rect x="40" y="40" width="220" height="100" rx="14" fill="#152141" stroke="#22d3ee"/>
+        <text x="150" y="68" text-anchor="middle" font-size="11" font-family="JetBrains Mono" fill="#22d3ee">EMPLOYER</text>
+        <text x="150" y="96" text-anchor="middle" font-size="15" font-weight="700" fill="#eaf0fa">e.g. construction co.</text>
+        <text x="150" y="120" text-anchor="middle" font-size="13" fill="#9fb0d0">required by law to insure</text>
+      </g>
+      <g>
+        <rect x="320" y="40" width="220" height="100" rx="14" fill="#152141" stroke="#fbbf24"/>
+        <text x="430" y="68" text-anchor="middle" font-size="11" font-family="JetBrains Mono" fill="#fbbf24">CARRIER</text>
+        <text x="430" y="96" text-anchor="middle" font-size="15" font-weight="700" fill="#eaf0fa">us · the insurance co.</text>
+        <text x="430" y="120" text-anchor="middle" font-size="13" fill="#9fb0d0">sells the policy</text>
+      </g>
+      <g>
+        <rect x="600" y="40" width="220" height="100" rx="14" fill="#152141" stroke="#a78bfa"/>
+        <text x="710" y="68" text-anchor="middle" font-size="11" font-family="JetBrains Mono" fill="#a78bfa">WORKER</text>
+        <text x="710" y="96" text-anchor="middle" font-size="15" font-weight="700" fill="#eaf0fa">gets hurt on the job</text>
+        <text x="710" y="120" text-anchor="middle" font-size="13" fill="#9fb0d0">files a claim</text>
+      </g>
+      <g>
+        <rect x="880" y="40" width="220" height="100" rx="14" fill="#152141" stroke="#34d399"/>
+        <text x="990" y="68" text-anchor="middle" font-size="11" font-family="JetBrains Mono" fill="#34d399">VENDORS</text>
+        <text x="990" y="96" text-anchor="middle" font-size="15" font-weight="700" fill="#eaf0fa">36 service types</text>
+        <text x="990" y="120" text-anchor="middle" font-size="13" fill="#9fb0d0">nurses, lawyers, etc.</text>
+      </g>
+      <g>
+        <rect x="1160" y="40" width="200" height="100" rx="14" fill="#152141" stroke="#f87171"/>
+        <text x="1260" y="68" text-anchor="middle" font-size="11" font-family="JetBrains Mono" fill="#f87171">STATE DOI</text>
+        <text x="1260" y="96" text-anchor="middle" font-size="15" font-weight="700" fill="#eaf0fa">the regulator</text>
+        <text x="1260" y="120" text-anchor="middle" font-size="13" fill="#9fb0d0">watches everything</text>
+      </g>
+
+      <!-- flows -->
+      <g stroke="#34d399" stroke-width="2" fill="none" marker-end="url(#aB)">
+        <path d="M 260 70 C 290 70 290 70 320 70"/>
+        <path d="M 820 100 C 850 100 850 100 880 100"/>
+      </g>
+
+      <!-- explanation box -->
+      <rect x="40" y="180" width="1320" height="260" rx="14" fill="#0f1830" stroke="#22325c"/>
+      <text x="60" y="208" font-size="11" font-family="JetBrains Mono" fill="#9fb0d0">// THE FLOW</text>
+      <text x="60" y="240" font-size="15" fill="#eaf0fa">1. The employer pays the carrier a <strong>premium</strong> (annual fee).</text>
+      <text x="60" y="268" font-size="15" fill="#eaf0fa">2. A worker gets injured. The employer reports it to the carrier — this is the <strong style="fill:#fbbf24">FNOL</strong> ("First Notice of Loss"). A new <strong>claim</strong> is born.</text>
+      <text x="60" y="296" font-size="15" fill="#eaf0fa">3. The carrier pays the worker's <strong>medical bills</strong> + a portion of their <strong>lost wages</strong> (called "indemnity") until they return to work.</text>
+      <text x="60" y="324" font-size="15" fill="#eaf0fa">4. To handle the claim well, the carrier engages external <strong>vendors</strong>: nurses to coordinate care, lawyers to defend disputed claims, investigators for fraud, translators, etc.</text>
+      <text x="60" y="352" font-size="15" fill="#eaf0fa">5. The carrier reports the claim's progress to the <strong>state regulator</strong> (a system called <strong style="fill:#fbbf24">EDI</strong>). The regulator can audit anything.</text>
+      <text x="60" y="392" font-size="15" font-weight="700" fill="#34d399">Carrier profit margin = premium received − (medical + indemnity + adjuster salaries + vendor fees + overhead)</text>
+      <text x="60" y="416" font-size="14" fill="#9fb0d0">→ Smarter vendor decisions and earlier service engagement directly improve the bottom line. <em>That's what we're building.</em></text>
+    </svg>
+  </div>
+</section>
+
+<!-- 4: The Claim object -->
+<section class="slide">
+  <div class="reveal r1 header"><span class="num">03 / THE CLAIM OBJECT</span><h2>This is the entity your code revolves around</h2></div>
+  <div class="grid grid-2 reveal r2" style="margin-top:8px;flex:1;min-height:0">
+<pre class="code"><span class="c">// A claim, as your code sees it.</span>
+<span class="c">// You consume events that change this state.</span>
+
+<span class="k">type</span> Claim = {
+  claim_id: <span class="s">"WC-2026-04-1187"</span>,
+  date_of_injury: <span class="s">"2026-04-12"</span>,
+  status: <span class="s">"open"</span> | <span class="s">"closed"</span> | <span class="s">"reopened"</span>,
+
+  <span class="c">// where it happened</span>
+  jurisdiction: <span class="s">"TX"</span>,  <span class="c">// state — every state has its own laws</span>
+  venue: <span class="s">"TX-DFW"</span>,
+
+  <span class="c">// what happened</span>
+  body_part: <span class="s">"shoulder"</span>,
+  injury_nature: <span class="s">"strain"</span>,
+  catastrophic_flag: <span class="n">false</span>,   <span class="c">// TBI, paralysis, amputation, etc.</span>
+
+  <span class="c">// the worker</span>
+  claimant: {
+    age_band: <span class="s">"45-54"</span>,
+    language_primary: <span class="s">"en"</span>,
+    geo_zip: <span class="s">"75201"</span>
+  },
+
+  <span class="c">// the employer</span>
+  employer: {
+    id: <span class="s">"emp-uuid"</span>,
+    modified_duty_available: <span class="n">true</span>  <span class="c">// can they accommodate light work?</span>
+  },
+
+  <span class="c">// state of play right now</span>
+  lost_time_days: <span class="n">9</span>,
+  current_reserve: <span class="n">42000</span>,  <span class="c">// $ we estimate this'll ultimately cost</span>
+
+  <span class="c">// scores computed by other ML models (we consume them)</span>
+  severity_score: <span class="n">0.68</span>,         <span class="c">// 0–1, predicted ultimate severity</span>
+  litigation_propensity: <span class="n">0.31</span>,  <span class="c">// 0–1, P(attorney involved)</span>
+
+  <span class="c">// services we've already engaged on this claim</span>
+  engaged_services: [
+    { service_id: <span class="s">"F1"</span>, vendor: <span class="s">"Verisma"</span>, since: <span class="s">"2026-04-13"</span> },
+    { service_id: <span class="s">"B1"</span>, vendor: <span class="s">"Mitchell"</span>, since: <span class="s">"2026-04-14"</span> }
+  ],
+
+  <span class="c">// medical / treatment signals</span>
+  treatment_plan_complexity: <span class="s">"multi-provider"</span>,
+  opioid_days: <span class="n">9</span>,            <span class="c">// days since first opioid Rx</span>
+  treating_provider: { npi: <span class="s">"..."</span>, watch_flag: <span class="n">false</span> }
+}
+</pre>
+    <div>
+      <h3 style="font-size:18px;margin-bottom:14px">Where does it come from?</h3>
+      <p style="margin-bottom:14px">A separate system called the <strong>claims core</strong> owns it. (Real-world names: Guidewire ClaimCenter, Duck Creek, Origami, or an in-house system.) <strong>You don't build that.</strong> You consume events from it.</p>
+
+      <div class="translation"><div class="what">jurisdiction</div><div class="means">= US state. Each state has different WC laws. Your code must respect this.</div></div>
+      <div class="translation"><div class="what">venue</div><div class="means">= the local court area where any lawsuit would be heard. Matters for picking lawyers.</div></div>
+      <div class="translation"><div class="what">reserve</div><div class="means">= the carrier's running estimate of what this claim will ultimately cost. Updated as the claim develops.</div></div>
+      <div class="translation"><div class="what">indemnity</div><div class="means">= wage replacement payments to the injured worker. Different from medical payments.</div></div>
+      <div class="translation"><div class="what">modified duty</div><div class="means">= can the employer give the worker easier work while they recover? Big factor in cost.</div></div>
+      <div class="translation"><div class="what">catastrophic_flag</div><div class="means">= severe injury (TBI, paralysis, amputation, ≥3rd-degree burn ≥30% body, fatality, multi-trauma).</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- 5: Domain vocabulary cheat sheet -->
+<section class="slide">
+  <div class="reveal r1 header"><span class="num">04 / DOMAIN VOCABULARY · CHEAT SHEET</span><h2>The 20 words you'll keep seeing — in plain English</h2></div>
+  <div class="reveal r2" style="margin-top:8px;flex:1;display:flex;flex-direction:column;min-height:0">
+    <div class="grid grid-2">
+      <table class="tight">
+        <thead><tr><th>Term</th><th>What it actually means</th></tr></thead>
+        <tbody>
+          <tr><td class="k">FNOL</td><td>First Notice of Loss = "a claim was just filed"</td></tr>
+          <tr><td class="k">DOI</td><td>Date of Injury</td></tr>
+          <tr><td class="k">MMI</td><td>Maximum Medical Improvement = "patient won't get better with more care"</td></tr>
+          <tr><td class="k">RTW</td><td>Return To Work</td></tr>
+          <tr><td class="k">LAE</td><td>Loss Adjustment Expense = "what it cost us to handle the claim, on top of paying the claim itself"</td></tr>
+          <tr><td class="k">ALAE</td><td>Allocated LAE = "money spent on THIS specific claim" (lawyer fees, IME, etc.)</td></tr>
+          <tr><td class="k">ULAE</td><td>Unallocated LAE = "our own staff salaries, building, software"</td></tr>
+          <tr><td class="k">NCM</td><td>Nurse Case Management = "we hire a nurse to coordinate the worker's care"</td></tr>
+          <tr><td class="k">TCM / FCM</td><td>Telephonic NCM (nurse calls) / Field NCM (nurse visits in person)</td></tr>
+          <tr><td class="k">UR</td><td>Utilization Review = "we pre-approve expensive treatments before they happen"</td></tr>
+        </tbody>
+      </table>
+      <table class="tight">
+        <thead><tr><th>Term</th><th>What it actually means</th></tr></thead>
+        <tbody>
+          <tr><td class="k">IME</td><td>Independent Medical Exam = "a doctor not involved in the case examines the patient to give a 2nd opinion"</td></tr>
+          <tr><td class="k">SIU</td><td>Special Investigations Unit = "fraud investigators"</td></tr>
+          <tr><td class="k">AOE/COE</td><td>"Arising Out Of / Course Of employment" = "was this really a work injury?"</td></tr>
+          <tr><td class="k">MSA</td><td>Medicare Set-Aside = "money locked away in a settlement to cover Medicare-eligible care later"</td></tr>
+          <tr><td class="k">PPO / MPN</td><td>Networks of pre-approved, discounted doctors</td></tr>
+          <tr><td class="k">PBM</td><td>Pharmacy Benefit Manager = "vendor that manages prescription drug spend"</td></tr>
+          <tr><td class="k">DME</td><td>Durable Medical Equipment = "wheelchairs, crutches, hospital beds, etc."</td></tr>
+          <tr><td class="k">EDI</td><td>Electronic Data Interchange = "filing electronic reports with the state regulator"</td></tr>
+          <tr><td class="k">FROI / SROI</td><td>First / Subsequent Report of Injury (specific EDI report types)</td></tr>
+          <tr><td class="k">DOI</td><td>(2nd meaning) Department of Insurance = state regulator</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="analogy" style="margin-top:18px">
+      <p><strong>You don't need to memorize this.</strong> Keep it open in a tab. After two weeks of work it sticks. The full glossary is in <code class="mono">triage_panel/GLOSSARY.md</code>.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 6: The system as a black box -->
+<section class="slide">
+  <div class="reveal r1 header"><span class="num">05 / THE SYSTEM · BLACK BOX VIEW</span><h2>What goes in. What comes out. Forget everything else for now.</h2></div>
+  <div class="reveal r2 figure">
+    <svg viewBox="0 0 1400 460" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="aBox" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#34d399"/></marker>
+      </defs>
+
+      <!-- IN -->
+      <rect x="40" y="80" width="380" height="300" rx="16" fill="#152141" stroke="#22d3ee"/>
+      <text x="60" y="110" font-size="11" font-family="JetBrains Mono" fill="#22d3ee">INPUT · ONE EVENT</text>
+      <text x="60" y="140" font-size="16" font-weight="700" fill="#eaf0fa">"Something changed on a claim"</text>
+      <text x="60" y="170" font-size="13" fill="#9fb0d0">e.g. one of these arrives on a message queue:</text>
+      <g font-family="JetBrains Mono" font-size="12" fill="#9fb0d0">
+        <text x="60" y="200">• FNOL filed (new claim)</text>
+        <text x="60" y="222">• Severity score updated</text>
+        <text x="60" y="244">• Doctor prescribed an opioid</text>
+        <text x="60" y="266">• Worker missed RTW deadline</text>
+        <text x="60" y="288">• Attorney appeared on the case</text>
+        <text x="60" y="310">• Reserve was increased</text>
+        <text x="60" y="332">• Catastrophic flag was set</text>
+        <text x="60" y="358">+ a pointer to the claim_id</text>
+      </g>
+
+      <!-- BOX -->
+      <rect x="480" y="80" width="440" height="300" rx="16" fill="#0f1830" stroke="#fbbf24" stroke-width="2"/>
+      <text x="700" y="120" text-anchor="middle" font-size="12" font-family="JetBrains Mono" fill="#fbbf24">WHAT YOU'RE BUILDING</text>
+      <text x="700" y="160" text-anchor="middle" font-size="22" font-weight="800" fill="#eaf0fa">Triage &amp; Vendor Match</text>
+      <text x="700" y="184" text-anchor="middle" font-size="22" font-weight="800" fill="#eaf0fa">Layer</text>
+      <text x="700" y="220" text-anchor="middle" font-size="13" fill="#9fb0d0">a recommendation engine</text>
+      <text x="700" y="240" text-anchor="middle" font-size="13" fill="#9fb0d0">for claim-handling decisions</text>
+
+      <rect x="540" y="280" width="320" height="80" rx="10" fill="#152141" stroke="#22325c"/>
+      <text x="700" y="305" text-anchor="middle" font-size="11" font-family="JetBrains Mono" fill="#fbbf24">RUNS IN UNDER 2 SECONDS</text>
+      <text x="700" y="328" text-anchor="middle" font-size="13" fill="#9fb0d0">P50 latency budget</text>
+      <text x="700" y="348" text-anchor="middle" font-size="13" fill="#9fb0d0">because an adjuster is waiting</text>
+
+      <!-- OUT -->
+      <rect x="980" y="80" width="380" height="300" rx="16" fill="#152141" stroke="#34d399"/>
+      <text x="1000" y="110" font-size="11" font-family="JetBrains Mono" fill="#34d399">OUTPUT · A RECOMMENDATION</text>
+      <text x="1000" y="140" font-size="16" font-weight="700" fill="#eaf0fa">"Do these, with these vendors"</text>
+      <text x="1000" y="170" font-size="13" fill="#9fb0d0">a JSON payload + a persisted record:</text>
+      <g font-family="JetBrains Mono" font-size="12" fill="#9fb0d0">
+        <text x="1000" y="200">• services_needed: [A1, B3]</text>
+        <text x="1000" y="222">• per service: top-3 vendors</text>
+        <text x="1000" y="244">• score + factor breakdown</text>
+        <text x="1000" y="266">• cost &amp; outcome estimates</text>
+        <text x="1000" y="288">• why (feature attribution)</text>
+        <text x="1000" y="310">• when (engage now? in 7d?)</text>
+        <text x="1000" y="332">• audit metadata (snapshot,</text>
+        <text x="1000" y="354">  model versions, weights)</text>
+      </g>
+
+      <!-- arrows -->
+      <g stroke="#34d399" stroke-width="3" fill="none" marker-end="url(#aBox)">
+        <line x1="420" y1="230" x2="480" y2="230"/>
+        <line x1="920" y1="230" x2="980" y2="230"/>
+      </g>
+
+      <!-- bottom band -->
+      <rect x="40" y="410" width="1320" height="36" rx="8" fill="#0f1830" stroke="#a78bfa" stroke-opacity=".4"/>
+      <text x="60" y="434" font-size="13" font-family="JetBrains Mono" fill="#a78bfa">// the adjuster sees this in their workflow · they accept · swap · or reject (with reason) · we capture everything</text>
+    </svg>
+  </div>
+</section>
+
+<!-- 7: The four components -->
+<section class="slide">
+  <div class="reveal r1 header"><span class="num">06 / FOUR COMPONENTS · ONE SYSTEM</span><h2>Break the black box into four services. Each one independently deployable.</h2></div>
+  <div class="grid grid-4 reveal r2" style="margin-top:14px">
+    <div class="card purp">
+      <div class="num purp">C1</div>
+      <h3 style="font-size:18px;margin-bottom:8px">Service Identifier</h3>
+      <p style="font-size:14px"><strong>Job:</strong> "What does this claim need?"</p>
+      <p style="font-size:13px;margin-top:8px">Input: a claim snapshot. Output: a list of services that should be engaged + when + why.</p>
+      <p style="font-size:13px;margin-top:8px;color:var(--text-mute)"><strong style="color:var(--purple)">Tech:</strong> rules engine + ML classifier + timing model</p>
+    </div>
+    <div class="card cyan">
+      <div class="num cyan">C2</div>
+      <h3 style="font-size:18px;margin-bottom:8px">Vendor Pool + Scorecard</h3>
+      <p style="font-size:14px"><strong>Job:</strong> "For this service, who's best?"</p>
+      <p style="font-size:13px;margin-top:8px">Input: a service + a claim context. Output: top-3 vendors with scores &amp; rationale.</p>
+      <p style="font-size:13px;margin-top:8px;color:var(--text-mute)"><strong class="cyan">Tech:</strong> Postgres + scoring math + cache</p>
+    </div>
+    <div class="card amber">
+      <div class="num amber">C3</div>
+      <h3 style="font-size:18px;margin-bottom:8px">Composer</h3>
+      <p style="font-size:14px"><strong>Job:</strong> "Bundle it for the adjuster, save it forever."</p>
+      <p style="font-size:13px;margin-top:8px">Calls C1, calls C2, applies governance rules, persists immutably, emits an event.</p>
+      <p style="font-size:13px;margin-top:8px;color:var(--text-mute)"><strong class="amber">Tech:</strong> stateless orchestrator + append-only log</p>
+    </div>
+    <div class="card">
+      <div class="num green">C4</div>
+      <h3 style="font-size:18px;margin-bottom:8px">Learning Loop</h3>
+      <p style="font-size:14px"><strong>Job:</strong> "Watch what happened. Get smarter."</p>
+      <p style="font-size:13px;margin-top:8px">Refreshes vendor scores, retrains the classifier, mines override patterns, proves ROI.</p>
+      <p style="font-size:13px;margin-top:8px;color:var(--text-mute)"><strong class="green">Tech:</strong> batch pipeline + model registry · <strong>Phase 2</strong></p>
+    </div>
+  </div>
+  <div class="reveal r3 analogy" style="margin-top:30px">
+    <p><strong>Mental model:</strong> C1 is like Spotify's recommender ("what should we suggest?"). C2 is like Yelp's ranking ("of these restaurants, which is best for the user?"). C3 is the UI assembler + audit ledger. C4 is the offline analytics that retrains everything.</p>
+  </div>
+  <p class="reveal r4 sub" style="margin-top:18px"><strong class="green">Phase 1 (months 0–9):</strong> ship C1 + C2 + C3 with simple versions. <strong class="green">Phase 2 (9–24):</strong> add C4 + sophisticated versions of C1/C2.</p>
+</section>
+
+<!-- 8: Component 1 deep dive -->
+<section class="slide">
+  <div class="reveal r1 header"><span class="num">07 / COMPONENT 1 · SERVICE IDENTIFIER</span><h2>"What does this claim need?" — three lanes, one output</h2></div>
+  <div class="grid grid-2 reveal r2" style="margin-top:8px;flex:1;min-height:0">
+    <div>
+      <p style="margin-bottom:12px">There are <strong class="purp">36 services</strong> in the catalog (see <code class="mono">SERVICE_CATALOG.md</code>). Each service is <em>typed</em> by how the decision gets made:</p>
+      <div class="translation"><div class="what" style="color:var(--cyan)">DET — deterministic rule</div><div class="means">Simple if-statement. e.g. <em>"if claimant.language ≠ 'en' → engage interpreter (C5)"</em>. No ML.</div></div>
+      <div class="translation"><div class="what" style="color:var(--purple)">PROB — ML classifier</div><div class="means">Probabilistic. e.g. <em>"Given this claim's features, P(needs defense counsel) = 0.62 → recommend"</em>. We use a multi-label model — one model, many outputs.</div></div>
+      <div class="translation"><div class="what" style="color:var(--amber)">TIME — timing model</div><div class="means">Decision is <em>when</em>, not <em>whether</em>. e.g. <em>"engage the nurse now vs in 14 days?"</em>. Survival-style model.</div></div>
+      <div class="translation"><div class="what" style="color:var(--red)">HUMAN — approval required</div><div class="means">Even if recommended, a human must approve before engagement. Only one service: surveillance (D2). Privacy + legal reasons.</div></div>
+      <div class="analogy" style="margin-top:14px;background:linear-gradient(135deg,rgba(167,139,250,.10),rgba(34,211,238,.06));border-color:rgba(167,139,250,.35)">
+        <p><strong>Why hybrid?</strong> Some services are <em>policy</em> — they should always fire under defined conditions (interpreter, MSA, state filings). Building an ML model for those would be over-engineering. Others are genuinely judgment calls — that's where the classifier earns its place.</p>
+      </div>
+    </div>
+<pre class="code"><span class="c"># Pseudocode — Service Identifier</span>
+
+<span class="k">def</span> <span class="p">identify_services</span>(snapshot: ClaimSnapshot) -&gt; List[ServiceRec]:
+
+    services = []
+
+    <span class="c"># LANE A · deterministic rules</span>
+    <span class="k">for</span> svc <span class="k">in</span> catalog.services_by_type(<span class="s">"DET"</span>):
+        <span class="k">if</span> rules.matches(snapshot, svc.rule):
+            services.append(ServiceRec(
+                service_id=svc.id,
+                confidence=<span class="n">1.0</span>,
+                when=<span class="s">"now"</span>,
+                why=rules.explanation(snapshot, svc.rule)
+            ))
+
+    <span class="c"># LANE B · multi-label classifier</span>
+    probs = classifier.predict_proba(snapshot)
+    <span class="c"># probs = { "A1": 0.78, "A6": 0.32, "D1": 0.61, ... }</span>
+    <span class="k">for</span> svc_id, p <span class="k">in</span> probs.items():
+        threshold = config.threshold_for(svc_id)
+        <span class="k">if</span> p &gt;= threshold:
+            services.append(ServiceRec(
+                service_id=svc_id,
+                confidence=p,
+                why=shap_attribution(snapshot, svc_id)
+            ))
+
+    <span class="c"># LANE C · timing model</span>
+    <span class="k">for</span> svc <span class="k">in</span> services:
+        <span class="k">if</span> catalog.has_timing(svc.service_id):
+            svc.when = timing.recommend_window(snapshot, svc.service_id)
+
+    <span class="c"># LANE D · HUMAN flag</span>
+    <span class="k">for</span> svc <span class="k">in</span> services:
+        <span class="k">if</span> catalog.requires_approval(svc.service_id):
+            svc.routing = <span class="s">"HUMAN_APPROVAL"</span>
+
+    <span class="k">return</span> dedupe_and_resolve_deps(services)
+</pre>
+  </div>
+</section>
+
+<!-- 9: Component 2 deep dive -->
+<section class="slide">
+  <div class="reveal r1 header"><span class="num">08 / COMPONENT 2 · VENDOR POOL + SCORECARD</span><h2>"For this service + this claim, give me top-3 vendors"</h2></div>
+  <div class="grid grid-2 reveal r2" style="margin-top:8px;flex:1;min-height:0">
+    <div>
+      <h3 style="font-size:17px;margin-bottom:10px">Two stages, in order</h3>
+      <p><strong class="amber">Stage 1 · FILTER (eligibility — binary)</strong> · 8 yes/no checks the vendor must pass:</p>
+      <ul class="bare" style="margin:8px 0 14px 0;font-size:13px">
+        <li>1. State licensure current</li>
+        <li>2. E&amp;O insurance at carrier limits</li>
+        <li>3. HIPAA BAA signed</li>
+        <li>4. Compliance attestations on file</li>
+        <li>5. No active regulatory action</li>
+        <li>6. SOC 2 Type II report</li>
+        <li>7. Rate card filed (machine-readable)</li>
+        <li>8. Capacity below 85% utilization</li>
+      </ul>
+      <p style="margin-top:10px">+ per-claim filter: jurisdiction match, no conflict of interest, not on this claim's exclusion list.</p>
+
+      <p style="margin-top:18px"><strong class="green">Stage 2 · SCORE (weighted composite)</strong>:</p>
+      <pre class="code" style="margin-top:8px;max-height:none">score =
+   <span class="n">0.40</span> * outcome   <span class="c"># did similar claims close well?</span>
+ + <span class="n">0.25</span> * cost      <span class="c"># savings/fee or cost per file</span>
+ + <span class="n">0.15</span> * speed     <span class="c"># SLA hit rate, cycle time</span>
+ + <span class="n">0.10</span> * specialty <span class="c"># match for THIS claim's specifics</span>
+ + <span class="n">0.05</span> * adj_sat   <span class="c"># adjuster post-engagement survey</span>
+ + <span class="n">0.05</span> * compliance</pre>
+    </div>
+    <div>
+<pre class="code"><span class="c"># Pseudocode — Vendor Pool</span>
+
+<span class="k">def</span> <span class="p">rank_vendors</span>(service_id, claim) -&gt; List[RankedVendor]:
+
+    <span class="c"># 1. fetch all vendors that offer this service</span>
+    candidates = vendor_master.offering(service_id)
+
+    <span class="c"># 2. apply 8 hard gates + per-claim filter</span>
+    eligible = [v <span class="k">for</span> v <span class="k">in</span> candidates
+                <span class="k">if</span> is_eligible(v, service_id, claim).ok]
+
+    <span class="c"># 3. score each eligible vendor — PER CLAIM</span>
+    scored = []
+    <span class="k">for</span> v <span class="k">in</span> eligible:
+        base = scorecard.get(v.id, service_id, claim.jurisdiction)
+
+        <span class="k">if</span> base.n_closed &lt; <span class="n">30</span>:
+            <span class="c"># not enough data — flag but don't rank</span>
+            scored.append(RankedVendor(v, status=<span class="s">"provisional"</span>))
+            <span class="k">continue</span>
+
+        <span class="c"># specialty_fit is per-CLAIM, not stored</span>
+        specialty = compute_specialty_fit(v, claim, service_id)
+        <span class="c"># match on body_part, language, geography, venue</span>
+
+        composite = (
+            <span class="n">0.40</span> * base.outcome +
+            <span class="n">0.25</span> * base.cost +
+            <span class="n">0.15</span> * base.speed +
+            <span class="n">0.10</span> * specialty +
+            <span class="n">0.05</span> * base.adj_sat +
+            <span class="n">0.05</span> * base.compliance
+        )
+        scored.append(RankedVendor(v, score=composite, breakdown=...))
+
+    <span class="c"># 4. sort, then apply governance overlay</span>
+    ranked = sorted(scored, key=<span class="k">lambda</span> r: -r.score)
+    ranked = apply_anti_concentration(ranked, service_id)
+    ranked = apply_exploration_quota(ranked)
+
+    <span class="k">return</span> ranked[:<span class="n">3</span>]
+</pre>
+    </div>
+  </div>
+</section>
+
+<!-- 10: Component 3 deep dive -->
+<section class="slide">
+  <div class="reveal r1 header"><span class="num">09 / COMPONENT 3 · COMPOSER</span><h2>The orchestrator. Calls C1, calls C2, persists immutably, emits an event.</h2></div>
+  <div class="grid grid-2 reveal r2" style="margin-top:8px;flex:1;min-height:0">
+<pre class="code"><span class="c"># Pseudocode — Composer (the heart of the system)</span>
+
+<span class="k">async def</span> <span class="p">on_claim_event</span>(event: ClaimEvent):
+
+    <span class="c"># 1. snapshot the claim state RIGHT NOW</span>
+    <span class="c">#    + pin model versions so we can reproduce later</span>
+    snapshot = claim_store.snapshot(event.claim_id)
+    versions = registry.current_versions()
+
+    <span class="c"># 2. ask C1 what services are needed</span>
+    services = <span class="k">await</span> service_identifier.identify(snapshot)
+
+    <span class="c"># 3. for each service, ask C2 for top-3 vendors</span>
+    blocks = []
+    <span class="k">for</span> svc <span class="k">in</span> services:
+        ranked = <span class="k">await</span> vendor_pool.rank(svc.service_id, snapshot)
+        blocks.append(ServiceBlock(svc, ranked))
+
+    <span class="c"># 4. apply governance overlay</span>
+    blocks = governance.apply(blocks, snapshot)
+    <span class="c">#   - hold D2 surveillance for human approval</span>
+    <span class="c">#   - enforce anti-concentration cap (50% per vendor)</span>
+    <span class="c">#   - apply 5% exploration quota</span>
+
+    <span class="c"># 5. compose the Recommendation object</span>
+    rec = Recommendation(
+        rec_id=uuid4(),
+        claim_id=event.claim_id,
+        issued_at=now(),
+        predecessor=last_rec_for(event.claim_id),  <span class="c"># lineage!</span>
+        snapshot_ref=snapshot.id,
+        model_versions=versions,
+        weights=governance.current_weights(),
+        service_recommendations=blocks
+    )
+
+    <span class="c"># 6. PERSIST IMMUTABLY — append-only ledger</span>
+    ledger.append(rec)
+
+    <span class="c"># 7. emit downstream event for UX, audit, warehouse</span>
+    bus.publish(<span class="s">"RecommendationIssued"</span>, rec.to_event())
+</pre>
+    <div>
+      <h3 style="font-size:17px;margin-bottom:10px">API surface (HTTP/JSON)</h3>
+      <pre class="code" style="font-size:11px"><span class="k">POST</span> /v1/recommendations/issue
+   body: ClaimEvent
+   → <span class="n">202</span> { rec_id }     <span class="c"># async, event-driven</span>
+
+<span class="k">GET</span>  /v1/recommendations/by-claim/:claim_id/latest
+   → <span class="n">200</span> Recommendation
+
+<span class="k">GET</span>  /v1/recommendations/:rec_id
+   → <span class="n">200</span> Recommendation  <span class="c"># immutable, same forever</span>
+
+<span class="k">POST</span> /v1/recommendations/:rec_id/action
+   body: AdjusterAction
+   → <span class="n">202</span> { action_id }   <span class="c"># adjuster accept/swap/reject</span>
+
+<span class="k">GET</span>  /v1/recommendations/:rec_id/lineage
+   → <span class="n">200</span> [rec_id, ...]   <span class="c"># walk the predecessor chain</span></pre>
+
+      <div class="analogy" style="margin-top:14px">
+        <p><strong>Critical invariant:</strong> Recommendations are <strong>immutable</strong>. You <em>never</em> update one. If the claim changes and the recommendation is stale, the Composer issues a <em>new</em> recommendation with <code class="mono">predecessor = old_rec_id</code>. That's the audit history.</p>
+      </div>
+
+      <div class="translation" style="margin-top:14px"><div class="what" style="color:var(--red)">Why so strict on immutability?</div><div class="means">A state regulator can audit any claim five years later. "Why did you do X on Jan 14, 2026?" You must answer with the <em>exact</em> data and models that drove the decision at that moment. Mutation would destroy that.</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- 11: Component 4 -->
+<section class="slide">
+  <div class="reveal r1 header"><span class="num">10 / COMPONENT 4 · LEARNING LOOP</span><h2>Phase 2. Briefly — so you know what's coming.</h2></div>
+  <div class="grid grid-4 reveal r2" style="margin-top:14px">
+    <div class="card">
+      <div class="num">LOOP 1 · weekly</div>
+      <h3 style="font-size:16px">Vendor score refresh</h3>
+      <p>Pull last-week's vendor outcomes. Recompute scores with propensity correction + time decay. Push to the scorecard cache.</p>
+    </div>
+    <div class="card purp">
+      <div class="num purp">LOOP 2 · quarterly</div>
+      <h3 style="font-size:16px">Classifier retrain</h3>
+      <p>Pull last quarter's labeled outcomes. Retrain the multi-label model. Validate on holdout. Run bias tests. Promote via model registry.</p>
+    </div>
+    <div class="card amber">
+      <div class="num amber">LOOP 3 · monthly</div>
+      <h3 style="font-size:16px">Threshold calibration</h3>
+      <p>Per service, plot ROI of engagement at the current trigger threshold. Tighten or loosen based on observed marginal value.</p>
+    </div>
+    <div class="card">
+      <div class="num">LOOP 4 · monthly</div>
+      <h3 style="font-size:16px">Override mining</h3>
+      <p>Cluster adjuster overrides by feature. If a pattern emerges (e.g. Tampa adjusters always swap vendor X for Y on shoulder claims), surface as a feature-engineering ticket.</p>
+    </div>
+  </div>
+  <div class="reveal r3 analogy" style="margin-top:30px">
+    <p><strong>The 5% holdout trick.</strong> When the system goes live, randomly suppress recommendations on 5% of claims for 6 months. Compare outcomes on the 95% (treatment) vs 5% (control) — that's how we <em>prove</em> the layer saves money. Without this, the finance team will spend three years arguing whether it worked. <strong>Bake this in from day 1 of production rollout.</strong></p>
+  </div>
+  <p class="reveal r4 sub" style="margin-top:16px"><strong class="green">In dev terms:</strong> a daily batch (Airflow/Dagster/cron) reads from a warehouse (Snowflake/BigQuery/etc.), writes back to (a) the vendor scorecard cache and (b) the model registry. The "online" path (C1/C2/C3) consumes the latest cache + latest model version at inference time. Standard offline/online ML pattern.</p>
+</section>
+
+<!-- 12: End-to-end walkthrough -->
+<section class="slide">
+  <div class="reveal r1 header"><span class="num">11 / END-TO-END · ONE REAL CLAIM</span><h2>Trace it through the system, step by step</h2></div>
+  <div class="reveal r2" style="margin-top:8px;flex:1;min-height:0;display:flex">
+<pre class="code" style="flex:1;max-height:none"><span class="c"># Setup: Carlos Garcia, construction worker, hurt his shoulder on 2026-04-12.</span>
+<span class="c"># Today is 2026-04-21. A doctor just prescribed an opioid. The PBM system</span>
+<span class="c"># publishes an event. Let's follow it.</span>
+
+<span class="c"># ────────────── STEP 1: event arrives on the bus ──────────────</span>
+{
+  <span class="k">"event_type"</span>: <span class="s">"PrescriptionFilled"</span>,
+  <span class="k">"event_id"</span>: <span class="s">"evt-9af3b1"</span>,
+  <span class="k">"claim_id"</span>: <span class="s">"WC-2026-04-1187"</span>,
+  <span class="k">"occurred_at"</span>: <span class="s">"2026-04-21T14:09:22Z"</span>,
+  <span class="k">"payload"</span>: { <span class="k">"drug_class"</span>: <span class="s">"opioid"</span>, <span class="k">"days_supply"</span>: <span class="n">7</span> }
+}
+
+<span class="c"># ────────────── STEP 2: Composer wakes up. Pulls snapshot. ──────────────</span>
+snapshot = {
+  <span class="k">"claim_id"</span>: <span class="s">"WC-2026-04-1187"</span>, <span class="k">"jurisdiction"</span>: <span class="s">"TX"</span>,
+  <span class="k">"body_part"</span>: <span class="s">"shoulder"</span>, <span class="k">"lost_time_days"</span>: <span class="n">9</span>,
+  <span class="k">"severity_score"</span>: <span class="n">0.68</span>, <span class="k">"litigation_propensity"</span>: <span class="n">0.31</span>,
+  <span class="k">"opioid_days"</span>: <span class="n">9</span>, <span class="k">"treatment_plan_complexity"</span>: <span class="s">"multi-provider"</span>,
+  <span class="k">"language_primary"</span>: <span class="s">"en"</span>, <span class="k">"geo_zip"</span>: <span class="s">"75201"</span>,
+  <span class="k">"engaged_services"</span>: [<span class="s">"F1"</span>, <span class="s">"B1"</span>]   <span class="c"># records + bill review already active</span>
+}
+
+<span class="c"># ────────────── STEP 3: Service Identifier fires ──────────────</span>
+services_needed = [
+  ServiceRec(<span class="s">"A1"</span>, <span class="c"># Telephonic Nurse Case Mgmt</span>
+             type=<span class="s">"PROB+TIME"</span>, confidence=<span class="n">0.78</span>, when=<span class="s">"now"</span>,
+             why=[<span class="s">"opioid_days&gt;7"</span>, <span class="s">"multi_provider"</span>, <span class="s">"severity 0.68"</span>]),
+  ServiceRec(<span class="s">"B3"</span>, <span class="c"># PBM intervention</span>
+             type=<span class="s">"DET"</span>, confidence=<span class="n">1.0</span>, when=<span class="s">"within 48h"</span>,
+             why=[<span class="s">"opioid Rx beyond 7 days"</span>])
+]
+
+<span class="c"># ────────────── STEP 4: Vendor Pool ranks for each ──────────────</span>
+<span class="c"># For A1 in TX: eligible pool = [Genex, Paradigm, CorVel, Concentra]</span>
+<span class="c"># Concentra has only 24 closed engagements (&lt; 30 floor) → "provisional"</span>
+top3_A1 = [
+  RankedVendor(<span class="s">"Genex"</span>,    score=<span class="n">82.6</span>, breakdown={...}, cost_band=<span class="s">"$1.8K–$3.5K"</span>),
+  RankedVendor(<span class="s">"Paradigm"</span>, score=<span class="n">81.3</span>, breakdown={...}, cost_band=<span class="s">"$2.4K–$4.8K"</span>),
+  RankedVendor(<span class="s">"CorVel"</span>,   score=<span class="n">79.4</span>, breakdown={...}, cost_band=<span class="s">"$1.5K–$3.0K"</span>),
+]
+
+<span class="c"># ────────────── STEP 5: Composer governance + persist ──────────────</span>
+<span class="c"># Genex currently at 47% TX-A1 share (cap 50%) → ok, ranks as-is</span>
+<span class="c"># This event is not in the 5% exploration slot → normal flow</span>
+<span class="c"># Neither service is D2 surveillance → no human-approval hold</span>
+
+ledger.append(Recommendation(
+  rec_id=<span class="s">"rec-0x7a3f"</span>, claim_id=<span class="s">"WC-2026-04-1187"</span>,
+  predecessor=<span class="s">"rec-0x6e1a"</span>,   <span class="c"># last rec on this claim, 6 days ago</span>
+  snapshot_ref=snapshot.id, model_versions=versions,
+  service_recommendations=[block_A1, block_B3]
+))
+
+<span class="c"># ────────────── STEP 6: bus.publish("RecommendationIssued") ──────────────</span>
+<span class="c"># Consumers wake up: UX SDK renders into Carlos's claim screen.</span>
+<span class="c">#                    Audit index updates. Warehouse copy written.</span>
+
+<span class="c"># ────────────── STEP 7: adjuster reacts (12 seconds later) ──────────────</span>
+{ <span class="k">"rec_id"</span>: <span class="s">"rec-0x7a3f"</span>, <span class="k">"adjuster_id"</span>: <span class="s">"adj-44"</span>,
+  <span class="k">"acted_at"</span>: <span class="s">"2026-04-21T14:09:34Z"</span>,
+  <span class="k">"action"</span>: <span class="s">"accept"</span>, <span class="k">"service_id"</span>: <span class="s">"A1"</span>,
+  <span class="k">"chosen_vendor"</span>: <span class="s">"Genex"</span> }
+{ <span class="k">"rec_id"</span>: <span class="s">"rec-0x7a3f"</span>, <span class="k">"action"</span>: <span class="s">"accept"</span>,
+  <span class="k">"service_id"</span>: <span class="s">"B3"</span>, <span class="k">"chosen_vendor"</span>: <span class="s">"myMatrixx"</span> }
+
+<span class="c"># ────────────── STEP 8: vendor APIs called ──────────────</span>
+<span class="c"># POST /vendor-api/v1/intake → Genex   (intake packet generated)</span>
+<span class="c"># POST /vendor-api/v1/intake → myMatrixx</span>
+<span class="c"># Capacity ticked. SLA timer started. Done.</span>
+</pre>
+  </div>
+</section>
+
+<!-- 13: Events you consume -->
+<section class="slide">
+  <div class="reveal r1 header"><span class="num">12 / INBOUND EVENTS</span><h2>What flows in · the events you subscribe to</h2></div>
+  <div class="reveal r2" style="margin-top:8px;flex:1;min-height:0;overflow:auto">
+    <table class="tight">
+      <thead><tr><th>Event name</th><th>Source system</th><th>What it means in plain English</th></tr></thead>
+      <tbody>
+        <tr><td class="k">FNOLFiled</td><td>Claims core</td><td>A brand-new claim was just reported. The first event in the claim's life.</td></tr>
+        <tr><td class="k">SeverityScored</td><td>Severity ML model</td><td>Another ML system updated this claim's predicted severity score.</td></tr>
+        <tr><td class="k">LitigationPropensityScored</td><td>Litigation ML model</td><td>Probability the claim ends up with attorney representation.</td></tr>
+        <tr><td class="k">TreatmentPlanSubmitted</td><td>Claims core / NCM portal</td><td>A treating doctor submitted a treatment plan (e.g. "patient needs surgery").</td></tr>
+        <tr><td class="k">PrescriptionFilled</td><td>PBM platform</td><td>A prescription was filled. Important when it's an opioid.</td></tr>
+        <tr><td class="k">ReserveChanged</td><td>Claims core / Reserving</td><td>The estimated ultimate cost of this claim was revised.</td></tr>
+        <tr><td class="k">ClaimStatusChanged</td><td>Claims core</td><td>Claim went open → closed, or reopened, etc.</td></tr>
+        <tr><td class="k">CatastrophicFlagSet</td><td>Claims core / Intake</td><td>This claim has been flagged catastrophic. Auto-triggers Cat NCM and a sub-pool of vendors.</td></tr>
+        <tr><td class="k">AttorneyRepresentationConfirmed</td><td>Claims core / Legal</td><td>The injured worker has hired a lawyer. Time to engage defense counsel.</td></tr>
+        <tr><td class="k">MMIDeclared</td><td>Claims core / NCM</td><td>Doctor says patient won't improve further. Triggers settlement-track services.</td></tr>
+        <tr><td class="k">VendorEligibilityChanged</td><td>Vendor management</td><td>A vendor's credentials, insurance, capacity, or rate card changed.</td></tr>
+        <tr><td class="k">RateCardUpdated</td><td>Procurement</td><td>Vendor's pricing changed.</td></tr>
+      </tbody>
+    </table>
+    <p class="sub" style="margin-top:14px"><strong class="amber">Schema discipline:</strong> every event carries <code class="mono">event_id</code>, <code class="mono">claim_id</code>, <code class="mono">occurred_at</code>, <code class="mono">source_version</code>, <code class="mono">payload</code>. Use a registry (Confluent Schema Registry, Avro/Protobuf) so producers can't break consumers.</p>
+  </div>
+</section>
+
+<!-- 14: Events you emit -->
+<section class="slide">
+  <div class="reveal r1 header"><span class="num">13 / OUTBOUND EVENTS</span><h2>What flows out · the events you publish</h2></div>
+  <div class="reveal r2" style="margin-top:8px;flex:1;min-height:0;overflow:auto">
+    <table class="tight">
+      <thead><tr><th>Event name</th><th>Consumer</th><th>What it means in plain English</th></tr></thead>
+      <tbody>
+        <tr><td class="k">RecommendationIssued</td><td>UX SDK · Audit · Warehouse</td><td>A new recommendation is ready. UI should render it; audit should index it.</td></tr>
+        <tr><td class="k">AdjusterAccepted</td><td>Vendor Engagement</td><td>Adjuster accepted the top-ranked vendor. Time to call the vendor API.</td></tr>
+        <tr><td class="k">AdjusterSwapped</td><td>Vendor Engagement · Learning</td><td>Adjuster picked rank 2 or 3 instead. Capture the reason — the learning loop wants it.</td></tr>
+        <tr><td class="k">AdjusterRejected</td><td>Learning</td><td>Adjuster rejected all 3. Strong learning signal.</td></tr>
+        <tr><td class="k">VendorEngaged</td><td>Vendor API · Claims core · Capacity</td><td>An intake packet went to the vendor. Capacity counter decremented. Claims core notified.</td></tr>
+        <tr><td class="k">SurveillanceApprovalRequested</td><td>Compliance workflow</td><td>The system recommended surveillance. A human approver must sign off before any engagement.</td></tr>
+        <tr><td class="k">VendorOutcomeReceived</td><td>Warehouse · Score refresh</td><td>The vendor reported back on a closed engagement. Feeds the learning loop.</td></tr>
+        <tr><td class="k">VendorScoreRefreshed</td><td>Vendor Pool · Notification</td><td>Weekly batch updated scores. Cache invalidated. Notify on material rank changes.</td></tr>
+        <tr><td class="k">ClassifierVersionPromoted</td><td>Model registry · Audit</td><td>A new classifier version went live. All future recommendations reference this version.</td></tr>
+        <tr><td class="k">AttributionReportPublished</td><td>Finance dashboard</td><td>Quarterly counterfactual savings number is ready.</td></tr>
+        <tr><td class="k">BiasReportPublished</td><td>Compliance dashboard</td><td>Vendor-steering bias analysis completed. Surface any disparate-impact flags.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- 15: NFRs in dev terms -->
+<section class="slide">
+  <div class="reveal r1 header"><span class="num">14 / NFRs · IN DEV TERMS</span><h2>What "good" looks like operationally</h2></div>
+  <div class="grid grid-3 reveal r2" style="margin-top:14px">
+    <div class="card cyan">
+      <div class="num cyan">SPEED</div>
+      <h3 style="font-size:17px">P50 &lt; 2s · P95 &lt; 5s</h3>
+      <p>From event arrival to persisted Recommendation. The adjuster is waiting — no spinners. Profile each component independently. Cache vendor scores aggressively (they refresh weekly).</p>
+    </div>
+    <div class="card purp">
+      <div class="num purp">IDEMPOTENT</div>
+      <h3 style="font-size:17px">Replay = same output</h3>
+      <p>Same event + same snapshot + same model versions = identical Recommendation. Key persistence by deterministic hash so re-delivery dedupes.</p>
+    </div>
+    <div class="card amber">
+      <div class="num amber">IMMUTABLE</div>
+      <h3 style="font-size:17px">Append-only ledger</h3>
+      <p>Never UPDATE a Recommendation row. New ones link to old via <code class="mono">predecessor_rec_id</code>. Walk the chain for full history.</p>
+    </div>
+    <div class="card red">
+      <div class="num red">AUDITABLE</div>
+      <h3 style="font-size:17px">5-year point-in-time replay</h3>
+      <p>Snapshot, model versions, weights, scores, candidates, action, outcome — all persisted, all queryable. Regulators ask "why" years later. You must answer exactly.</p>
+    </div>
+    <div class="card">
+      <div class="num">PHI / HIPAA</div>
+      <h3 style="font-size:17px">Encrypt everything</h3>
+      <p>TLS 1.3 in transit, AES-256 at rest. Vendor packets redact identifiers (claim_number is opaque). Access controls per role. Don't log PII.</p>
+    </div>
+    <div class="card">
+      <div class="num">JURISDICTION</div>
+      <h3 style="font-size:17px">Config, not code</h3>
+      <p>State-specific eligibility, weights, consumer-notice copy → data tables, not <code class="mono">if state == 'CA'</code> branches. Hard-coded jurisdiction logic will rot.</p>
+    </div>
+    <div class="card cyan">
+      <div class="num cyan">OBSERVABILITY</div>
+      <h3 style="font-size:17px">Trace every event</h3>
+      <p>One trace ID per inbound event, propagated through C1 → C2 → C3 → vendor API call. Latency per component. Use OpenTelemetry or equivalent.</p>
+    </div>
+    <div class="card amber">
+      <div class="num amber">DEPLOYABLE</div>
+      <h3 style="font-size:17px">Each component independent</h3>
+      <p>C1/C2/C3/C4 deploy separately. Feature-flag new classifier versions. Shadow mode for promotions. Standard ML deployment hygiene.</p>
+    </div>
+    <div class="card">
+      <div class="num green">ADOPTION TARGET</div>
+      <h3 style="font-size:17px">≥70% accept rate · end of Phase 2</h3>
+      <p>Measured as AdjusterAccepted ÷ RecommendationIssued. It's a <em>product</em> KPI, not an <em>individual adjuster</em> KPI (year 1, per policy).</p>
+    </div>
+  </div>
+</section>
+
+<!-- 16: Stack recommendations -->
+<section class="slide">
+  <div class="reveal r1 header"><span class="num">15 / STACK SUGGESTIONS</span><h2>Defaults. Override based on what your org already runs.</h2></div>
+  <div class="grid grid-2 reveal r2" style="margin-top:14px">
+    <div class="card">
+      <div class="num">EVENT BUS</div>
+      <h3 style="font-size:17px">Apache Kafka (or Kinesis / Pub/Sub)</h3>
+      <p>You need durable, replayable streams. Avoid lightweight message queues (RabbitMQ, SQS) — replay-from-the-past is non-negotiable for an event-sourced system.</p>
+    </div>
+    <div class="card cyan">
+      <div class="num cyan">SERVICE RUNTIME</div>
+      <h3 style="font-size:17px">Python for C1 + C4 · pick your poison for C2 + C3</h3>
+      <p>Python for ML-heavy services because the ML ecosystem is there. Go / Java / TypeScript / Kotlin all fine for the orchestrator and the vendor pool. Pick what your team ships fastest.</p>
+    </div>
+    <div class="card amber">
+      <div class="num amber">RELATIONAL DB</div>
+      <h3 style="font-size:17px">PostgreSQL</h3>
+      <p>Vendor master, eligibility, capacity, scorecard cache, append-only recommendation ledger. Use partitioning for the ledger (by issue date).</p>
+    </div>
+    <div class="card">
+      <div class="num">OBJECT STORE</div>
+      <h3 style="font-size:17px">S3 / GCS / Azure Blob</h3>
+      <p>Snapshots, feature-store backing, model artifacts, audit pack exports. Cheap, durable, lifecycle-policied.</p>
+    </div>
+    <div class="card purp">
+      <div class="num purp">FEATURE STORE</div>
+      <h3 style="font-size:17px">Feast (or roll a thin one)</h3>
+      <p>Online features served &lt;10ms for the classifier. Offline features for retraining. If your scale is small, a Redis + Postgres pattern is fine to start.</p>
+    </div>
+    <div class="card">
+      <div class="num">MODEL REGISTRY</div>
+      <h3 style="font-size:17px">MLflow</h3>
+      <p>Version every model. The Composer pins <code class="mono">model_versions</code> on every recommendation — and that pin must resolve to a specific artifact forever.</p>
+    </div>
+    <div class="card cyan">
+      <div class="num cyan">BATCH / ORCHESTRATION</div>
+      <h3 style="font-size:17px">Airflow · Dagster · Prefect</h3>
+      <p>Weekly score refresh, quarterly retrain, monthly threshold review, monthly override mining. Pick one and stick with it.</p>
+    </div>
+    <div class="card">
+      <div class="num">OBSERVABILITY</div>
+      <h3 style="font-size:17px">OpenTelemetry + your stack</h3>
+      <p>Datadog · Grafana · Honeycomb · anything. Traces are the priority — you need to see one inbound event flow through 3 services.</p>
+    </div>
+  </div>
+  <p class="reveal r3 sub" style="margin-top:18px"><strong>Architectural style:</strong> event-driven for async paths; REST/JSON for synchronous request/response (the UX SDK calls Composer over HTTP). CQRS-style read models for the vendor scorecard (writes via batch, reads via cache).</p>
+</section>
+
+<!-- 17: Build order -->
+<section class="slide">
+  <div class="reveal r1 header"><span class="num">16 / BUILD ORDER · PHASE 1 (MONTHS 0–9)</span><h2>What ships in what order. The first 9 months, mapped.</h2></div>
+  <div class="grid grid-3 reveal r2" style="margin-top:14px">
+    <div class="card">
+      <div class="num">MONTHS 0–3 · foundation</div>
+      <h3 style="font-size:17px">Schemas + skeletons + plumbing</h3>
+      <ul class="bare" style="margin-top:8px;font-size:13px">
+        <li>✓ Service Catalog schema + seed data (36 services)</li>
+        <li>✓ Vendor Master schema</li>
+        <li>✓ 8-gate Eligibility Evaluator (a pure function)</li>
+        <li>✓ Recommendation ledger primitives (append-only)</li>
+        <li>✓ Event bus topics and contracts</li>
+        <li>✓ One end-to-end "hello world" recommendation flowing through all 3 services</li>
+      </ul>
+    </div>
+    <div class="card cyan">
+      <div class="num cyan">MONTHS 3–6 · the rule layer</div>
+      <h3 style="font-size:17px">Deterministic services live, scorecard MVP</h3>
+      <ul class="bare" style="margin-top:8px;font-size:13px">
+        <li>✓ Rules engine for all DET services (interpreter, MSA, Sec 111, EDI, MBR triggers)</li>
+        <li>✓ Composer skeleton — issues recommendations end-to-end</li>
+        <li>✓ Scorecard MVP — 6 factors, uncorrected scores from prior outcomes</li>
+        <li>✓ UX SDK alpha — embedded card in claim screen</li>
+        <li>✓ Top-5 spend categories (MBR, Counsel, NCM, IME, SIU) live in read-only mode</li>
+      </ul>
+    </div>
+    <div class="card purp">
+      <div class="num purp">MONTHS 6–9 · the ML layer</div>
+      <h3 style="font-size:17px">Pilot launch + 5% holdout</h3>
+      <ul class="bare" style="margin-top:8px;font-size:13px">
+        <li>✓ v1 multi-label classifier for top-5 categories</li>
+        <li>✓ Live recommendations to adjusters in one pilot office</li>
+        <li>✓ Override capture flow (vocabulary + free text)</li>
+        <li>✓ 5% randomized holdout cohort begins at production go-live</li>
+        <li>✓ Full audit persistence verified</li>
+        <li>✓ Latency SLO met: P50 &lt; 2s, P95 &lt; 5s</li>
+      </ul>
+    </div>
+  </div>
+  <div class="reveal r3" style="margin-top:24px">
+    <h3 style="font-size:17px;margin-bottom:10px">Phase 2 (Months 9–24) — what's after Phase 1</h3>
+    <div class="grid grid-2">
+      <div class="card amber">
+        <div class="num amber">M9–18</div>
+        <h3 style="font-size:15px">Propensity correction · timing model · anti-concentration + exploration quotas · Vendor API published · output-side bias testing</h3>
+      </div>
+      <div class="card">
+        <div class="num green">M18–24</div>
+        <h3 style="font-size:15px">Override-pattern learning loop · quarterly attribution to finance · catalog expanded to long-tail · acceptance ≥70%</h3>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 18: Five things to remember -->
+<section class="slide">
+  <div class="reveal r1 kicker">// if you only remember 5 things</div>
+  <h1 class="reveal r2" style="font-size:clamp(32px,4.4vw,52px);max-width:1200px;margin-bottom:30px">Take these five rules and<br/>you'll <span class="em">build it right</span>.</h1>
+  <div class="reveal r3" style="display:flex;flex-direction:column;gap:14px;max-width:1200px">
+    <div style="display:flex;gap:18px;align-items:flex-start;padding:18px 22px;background:var(--panel);border:1px solid var(--line);border-radius:12px">
+      <div style="flex:0 0 56px;height:56px;border-radius:14px;background:linear-gradient(135deg,var(--green),var(--cyan));display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:800;color:var(--bg)">1</div>
+      <div>
+        <h3 style="font-size:18px;margin-bottom:4px">We're a recommendation engine for claim handling.</h3>
+        <p style="font-size:14px">Spotify's Discover Weekly — but the "items" are services and vendors, and a human accepts or overrides every one. That mental model is more correct than any insurance-textbook framing.</p>
+      </div>
+    </div>
+    <div style="display:flex;gap:18px;align-items:flex-start;padding:18px 22px;background:var(--panel);border:1px solid var(--line);border-radius:12px">
+      <div style="flex:0 0 56px;height:56px;border-radius:14px;background:linear-gradient(135deg,var(--green),var(--cyan));display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:800;color:var(--bg)">2</div>
+      <div>
+        <h3 style="font-size:18px;margin-bottom:4px">The adjuster always decides. We never auto-engage a vendor on judgment-call services.</h3>
+        <p style="font-size:14px">DET services fire automatically (interpreter, state filings). PROB services are <em>suggestions</em>. Surveillance (D2) <em>requires</em> a named-human approval — non-negotiable, regardless of model confidence.</p>
+      </div>
+    </div>
+    <div style="display:flex;gap:18px;align-items:flex-start;padding:18px 22px;background:var(--panel);border:1px solid var(--line);border-radius:12px">
+      <div style="flex:0 0 56px;height:56px;border-radius:14px;background:linear-gradient(135deg,var(--green),var(--cyan));display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:800;color:var(--bg)">3</div>
+      <div>
+        <h3 style="font-size:18px;margin-bottom:4px">Every recommendation is immutable and reproducible.</h3>
+        <p style="font-size:14px">Snapshot + model versions + weights + scores + action + outcome — persisted forever. A regulator can audit any decision five years later. <em>This is not optional.</em></p>
+      </div>
+    </div>
+    <div style="display:flex;gap:18px;align-items:flex-start;padding:18px 22px;background:var(--panel);border:1px solid var(--line);border-radius:12px">
+      <div style="flex:0 0 56px;height:56px;border-radius:14px;background:linear-gradient(135deg,var(--green),var(--cyan));display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:800;color:var(--bg)">4</div>
+      <div>
+        <h3 style="font-size:18px;margin-bottom:4px">Outcome (40%) outweighs Cost (25%) in the scoring.</h3>
+        <p style="font-size:14px">If you swap those weights — even slightly — you've built a different system. The whole program's value depends on not optimizing cost at the expense of claimant outcomes. (Regulator complaint ratios are the early warning.)</p>
+      </div>
+    </div>
+    <div style="display:flex;gap:18px;align-items:flex-start;padding:18px 22px;background:var(--panel);border:1px solid var(--line);border-radius:12px">
+      <div style="flex:0 0 56px;height:56px;border-radius:14px;background:linear-gradient(135deg,var(--green),var(--cyan));display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:800;color:var(--bg)">5</div>
+      <div>
+        <h3 style="font-size:18px;margin-bottom:4px">Ship Phase 1 with rules + simple classifier + scorecard MVP. Resist building the learning loop first.</h3>
+        <p style="font-size:14px">C4 only makes sense once C1/C2/C3 are producing recommendations and capturing outcomes at scale. Building C4 first is the classic ML-platform trap. <em>Don't fall in.</em></p>
+      </div>
+    </div>
+  </div>
+  <p class="reveal r4 sub" style="margin-top:24px">Now open <code class="mono">triage_decks/architecture_deck.html</code> — it should make sense end-to-end.</p>
+</section>
+
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const total = slides.length;
+  let idx = 0;
+  document.getElementById('slideTotal').textContent = total;
+  function show(n){
+    n = Math.max(0, Math.min(total-1, n));
+    slides[idx].classList.remove('active');
+    idx = n;
+    slides[idx].classList.add('active');
+    document.getElementById('slideNum').textContent = idx+1;
+    document.getElementById('progress').style.width = ((idx+1)/total*100)+'%';
+  }
+  document.addEventListener('keydown', e=>{
+    if(e.key==='ArrowRight' || e.key===' ' || e.key==='PageDown') show(idx+1);
+    else if(e.key==='ArrowLeft' || e.key==='PageUp') show(idx-1);
+    else if(e.key==='Home') show(0);
+    else if(e.key==='End') show(total-1);
+    else if(e.key==='f' || e.key==='F'){
+      if(!document.fullscreenElement) document.documentElement.requestFullscreen();
+      else document.exitFullscreen();
+    }
+  });
+  document.addEventListener('click', e=>{
+    if(e.target.closest('.chrome') || e.target.closest('.navhint')) return;
+    const r = window.innerWidth;
+    if(e.clientX > r/2) show(idx+1);
+    else show(idx-1);
+  });
+  show(0);
+</script>
+</body>
+</html>

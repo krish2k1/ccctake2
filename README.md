@@ -23,6 +23,7 @@ Brand-new panel session that drills Domains 2 (Triage) + 5 (Vendor Orchestration
 - **[`executive_brief.html`](triage_decks/executive_brief.html)** — 15-slide deck for the Executive Sponsor Group. The capability, the prize (0.8–1.2 LAE points · ~50% of the program target), the guardrails, the decision asked.
 - **[`architecture_deck.html`](triage_decks/architecture_deck.html)** — 15-slide engineering deck. System context, four components, canonical data model, event catalog, NFRs, build sequence, open design questions.
 - **[`match_flow.html`](triage_decks/match_flow.html)** — 15-slide visual walkthrough. One-picture overview, the 5-step recipe, three scenarios (routine · catastrophic · SIU red-flag), trigger map, scorecard visualized, adjuster screen mock, learning + attribution loops.
+- **[`dev_build_guide.html`](triage_decks/dev_build_guide.html)** — 18-slide hand-off guide written for engineers with **zero insurance background**. Plain-English problem framing, WC-in-60-seconds, domain vocab cheat sheet, four components with pseudocode, end-to-end walkthrough with real data, event catalogs, NFRs in dev terms, stack suggestions, sprint-mapped Phase-1 build order, and a "5 things to remember" closing.
 
 ### `triage_panel/` — Session-II panel artifacts
 - **[`PANEL_TRANSCRIPT.md`](triage_panel/PANEL_TRANSCRIPT.md)** — Session-II transcript: eight panelists, ten sections, captured verbatim.
